@@ -14,14 +14,11 @@ services:
       dockerfile: backend/Dockerfile
     restart: unless-stopped
     # Ordem importa: o ÚLTIMO arquivo vence, então vai do mais genérico para o
-    # mais específico. env.defaults e env.admin são versionados (padrões);
-    # .env é a config local da máquina e precisa vencer os dois; backend/.env é
-    # escrito pelo painel admin e pode ainda não existir (required: false).
+    # mais específico. .env é a config local da máquina; backend/.env é escrito
+    # pelo painel admin e pode ainda não existir (required: false).
     env_file:
       - path: backend/env.defaults
-        required: false
-      - path: backend/env.admin
-        required: false
+        required: true
       - path: .env
         required: false
       - path: backend/.env
