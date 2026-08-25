@@ -7,6 +7,11 @@ Projeto Python com backend Flask e frontend web, com suporte a provedores de IA:
 A ROSITA é um assistente que responde dúvidas sobre o regimento e os procedimentos
 da escola, baseando-se na documentação oficial carregada em memória.
 
+A funcionalidade de histórico foi removida do fluxo principal para simplificar a
+experiência do usuário e evitar dependências de persistência que não são essenciais
+para o chat. O sistema continua operacional com conversas locais da interface e sem
+armazenamento persistente de histórico por sessão.
+
 ## Arquitetura
 
 ```txt
@@ -23,7 +28,7 @@ da escola, baseando-se na documentação oficial carregada em memória.
 │  Backend (Flask + Gunicorn)  │
 │  • Rotas/auth (hash + rate-limit)
 │  • RositaAgent (orquestração)│
-│  • HistoryStore (SQLite, por usuário)
+│  • Chat sem persistência de histórico
 └──────────────┬───────────────┘
                │
    ┌───────────┼───────────┐
@@ -38,7 +43,8 @@ da escola, baseando-se na documentação oficial carregada em memória.
 
 - **Autenticação** com senhas em hash (`werkzeug`), `secret_key` por ambiente e
   rate limiting em login/chat.
-- **Histórico por usuário** persistido em SQLite (sobrevive a reinícios).
+- **Chat em streaming** sem persistência de histórico, adequado para uso sem
+  dependência de banco SQLite.
 - **Chat em streaming** com indicador de "digitando", botão de parar/copiar e
   auto-scroll inteligente.
 - **Tema claro/escuro**: a abertura da interface **sempre inicia no tema escuro**
@@ -70,7 +76,7 @@ ROSITA/
 │   └── src/rosita/
 │       ├── core/          # agent.py, ai_client.py (OpenRouter, Gateway), prompt_builder.py
 │       ├── api/           # routes.py (REST + SSE)
-│       ├── utils/         # env_manager, file_loader, history_store, system_monitor, validators
+│       ├── utils/         # env_manager, file_loader, system_monitor, validators
 │       ├── app_factory.py
 │       ├── bootstrap.py
 │       └── settings.py
@@ -93,7 +99,7 @@ ROSITA/
 │   └── win_run_web.bat
 ├── start_system.bat
 ├── start_system.sh
-├── tests/                 # HistoryStore, auth/API, validadores, proxy web, deploy
+├── tests/                 # auth/API, validadores, proxy web, deploy
 ├── web/
 │   ├── Dockerfile
 │   ├── index.html
@@ -189,15 +195,10 @@ ROSITA_USER_PASSWORD_HASH=
   carregado automaticamente ao iniciar o backend local.
 - `POST /api/auth/login` (10/min) e `POST /api/chat` (20/min) têm limite de taxa.
 
-## Histórico por usuário
+## Histórico
 
-O histórico de conversa é persistido em **SQLite**, isolado por usuário (ou por
-visitante anônimo, via ID de sessão), e sobrevive a reinícios do servidor. O
-caminho do banco é configurável:
-
-```env
-ROSITA_HISTORY_DB=backend/rosita_history.sqlite3
-```
+A funcionalidade de histórico foi removida do projeto. O chat continua funcional
+sem persistência por usuário e sem armazenamento em SQLite.
 
 ## Ajustes opcionais
 
@@ -224,8 +225,8 @@ pip install -r requirements-dev.txt
 pytest
 ```
 
-Cobrem o `HistoryStore`, validação de entrada, autenticação/autorização, o núcleo
-do agente (sem depender de um servidor de IA), o proxy do frontend
+Cobrem a validação de entrada, autenticação/autorização, o núcleo do agente
+(sem depender de um servidor de IA), o proxy do frontend
 (`web/scripts/dev_server.py`) e checagens de deploy.
 
 ## Execução
@@ -345,7 +346,8 @@ No **MiniOS ou máquina sem GPU**, prefira um gateway com modelo menor (ex.: `de
 - `GET /api/status` (inclui `provedor_ia`, `gateway_url` quando aplicável)
 - `POST /api/auth/login` (rate limit 10/min; **apenas admin**), `POST /api/auth/logout`, `GET /api/auth/session`
 - `POST /api/chat` (rate limit 20/min; resposta em SSE)
-- `GET /api/historico`, `POST /api/limpar` (do usuário logado ou do visitante anônimo da sessão)
+- `GET /api/historico` e `POST /api/limpar` mantidos apenas como compatibilidade
+  e retornando estado vazio/limpo, sem persistência real
 - `GET /api/provedores` (admin)
 - `POST /api/provedores/trocar` (admin; body: `{ "provedor": "openrouter" | "gateway" }`)
 - `GET /api/models`, `POST /api/models/select` (admin)

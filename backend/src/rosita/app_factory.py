@@ -12,7 +12,6 @@ from werkzeug.middleware.proxy_fix import ProxyFix
 from rosita.api.routes import create_api_blueprint
 from rosita.bootstrap import criar_agente
 from rosita.settings import load_settings
-from rosita.utils.history_store import HistoryStore
 
 logger = logging.getLogger("rosita.app")
 
@@ -57,7 +56,7 @@ def create_app() -> Flask:
     """Cria e configura a aplicação Flask."""
     settings = load_settings()
     agent = criar_agente(settings)
-    history_store = HistoryStore(settings.history_db_path)
+    history_store = None
 
     app = Flask(__name__)
     limiter = _build_limiter()

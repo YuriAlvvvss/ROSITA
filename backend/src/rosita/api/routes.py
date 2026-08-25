@@ -236,12 +236,8 @@ def create_api_blueprint(
         if not validar_pergunta(mensagem, settings.max_input_chars):
             return jsonify({"erro": "Mensagem inválida."}), 400
 
-        # Captura usuário e histórico fora do gerador (contexto de requisição).
-        username = _usuario_atual()
         pergunta = str(mensagem).strip()
-        historico_previo = (
-            history_store.get(username, limit=settings.max_history) if history_store else []
-        )
+        historico_previo: list[dict[str, str]] = []
 
         def gerar_resposta() -> Generator[str, None, None]:
             resposta = ""
@@ -249,10 +245,6 @@ def create_api_blueprint(
                 for chunk in agent.processar_pergunta(pergunta, historico_previo):
                     resposta += chunk
                     yield _sse_chunk_payload(chunk)
-                # Persiste pergunta e resposta apenas em caso de sucesso.
-                if history_store and username:
-                    history_store.append(username, "user", pergunta)
-                    history_store.append(username, "assistant", resposta)
                 yield "data: [FIM]\n\n"
             except Exception as exc:
                 logger.exception("Erro ao gerar resposta do chat")
@@ -394,14 +386,11 @@ def create_api_blueprint(
 
     @api_bp.route("/limpar", methods=["POST"])
     def limpar() -> Any:
-        if history_store:
-            history_store.clear(_usuario_atual())
-        return jsonify({"mensagem": "Histórico limpo com sucesso."})
+        return jsonify({"mensagem": "Histórico removido. A conversa local foi limpa."})
 
     @api_bp.route("/historico", methods=["GET"])
     def historico() -> Any:
-        registros = history_store.get(_usuario_atual()) if history_store else []
-        return jsonify({"historico": registros})
+        return jsonify({"historico": []})
 
     @api_bp.route("/provedores", methods=["GET"])
     @_require_roles("admin")
