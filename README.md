@@ -342,6 +342,7 @@ No **MiniOS ou máquina sem GPU**, prefira um gateway com modelo menor (ex.: `de
 
 - `GET /` — JSON `{ "mensagem": "API ROSITA online" }`
 - `GET /api/health` — healthcheck que verifica o provedor de IA (200 ok / 503 degradado)
+- `GET /api/regimento/pdf` — serve o Regimento Escolar ECIM em visualização PDF
 - `GET /api/status` (inclui `provedor_ia`, `gateway_url` quando aplicável)
 - `POST /api/auth/login` (rate limit 10/min; **apenas admin**), `POST /api/auth/logout`, `GET /api/auth/session`
 - `POST /api/chat` (rate limit 20/min; resposta em SSE)

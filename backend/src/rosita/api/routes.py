@@ -9,7 +9,7 @@ from functools import wraps
 from pathlib import Path
 from typing import Any, Callable, Generator
 
-from flask import Blueprint, Response, jsonify, request, session
+from flask import Blueprint, Response, jsonify, request, send_file, session
 from werkzeug.security import check_password_hash, generate_password_hash
 
 from rosita.bootstrap import montar_contexto_agente
@@ -279,6 +279,35 @@ def create_api_blueprint(
             "ia": ia,
         }
         return jsonify(payload), (200 if ia["ok"] else 503)
+
+    @api_bp.route("/regimento/pdf", methods=["GET"])
+    def regimento_pdf() -> Any:
+        """Serve o regimento PDF sem permitir caminhos arbitrários."""
+        nomes_aceitos = {"regimento_ecim.pdf", "regimento.pdf"}
+        caminho_pdf = (
+            next(
+                (
+                    caminho
+                    for caminho in settings.data_dir.iterdir()
+                    if caminho.is_file() and caminho.name.lower() in nomes_aceitos
+                ),
+                None,
+            )
+            if settings.data_dir.exists()
+            else None
+        )
+
+        if caminho_pdf is None:
+            return jsonify(
+                {"erro": "Documento PDF do regimento não encontrado no servidor."}
+            ), 404
+
+        return send_file(
+            str(caminho_pdf),
+            mimetype="application/pdf",
+            as_attachment=False,
+            download_name="regimento_ECIM.pdf",
+        )
 
     @api_bp.route("/status", methods=["GET"])
     def status() -> Any:

@@ -124,6 +124,34 @@ def test_health_e_publico_e_tem_estrutura(contexto):
     assert (resp.status_code == 200) == dados["ia"]["ok"]
 
 
+def test_regimento_pdf_retorna_documento_em_data_dir_temporario(tmp_path, monkeypatch):
+    monkeypatch.setenv("ROSITA_DATA_DIR", str(tmp_path))
+    monkeypatch.setenv("ROSITA_AI_PROVIDER", "gateway")
+    monkeypatch.setenv("ROSITA_GATEWAY_URL", "http://teste-local:8000")
+    (tmp_path / "regimento_ECIM.pdf").write_bytes(b"%PDF-1.4 dummy")
+    app = create_app()
+
+    response = app.test_client().get("/api/regimento/pdf")
+
+    assert response.status_code == 200
+    assert response.content_type == "application/pdf"
+    assert response.data == b"%PDF-1.4 dummy"
+
+
+def test_regimento_pdf_retorna_404_quando_documento_nao_existe(tmp_path, monkeypatch):
+    monkeypatch.setenv("ROSITA_DATA_DIR", str(tmp_path))
+    monkeypatch.setenv("ROSITA_AI_PROVIDER", "gateway")
+    monkeypatch.setenv("ROSITA_GATEWAY_URL", "http://teste-local:8000")
+    app = create_app()
+
+    response = app.test_client().get("/api/regimento/pdf")
+
+    assert response.status_code == 404
+    assert response.get_json() == {
+        "erro": "Documento PDF do regimento não encontrado no servidor."
+    }
+
+
 def test_rate_limit_no_login(contexto):
     pytest.importorskip("flask_limiter")
     app, _ = contexto

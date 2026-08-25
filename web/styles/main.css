@@ -602,6 +602,12 @@ body {
   text-align: left;
 }
 
+a.nav-item {
+  color: inherit;
+  text-decoration: none;
+  cursor: pointer;
+}
+
 .nav-item:hover:not(.nav-item--active):not(.nav-item--ghost) {
   background: rgba(124, 58, 237, 0.15);
   color: var(--color-text);

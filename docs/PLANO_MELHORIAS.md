@@ -41,6 +41,7 @@
 | 3.6 | Botão "copiar" nas respostas | `web/scripts/main.js`, `web/styles/main.css` | Útil para colar respostas | ✅ |
 | 3.7 | Itens de menu mortos ("Histórico"/"Regimento") removidos | `web/index.html`, `web/styles/main.css` | Botões que não fazem nada | ✅ |
 | 3.8 | Acessibilidade: `:focus-visible` e contraste do `--color-text-muted` | `web/styles/main.css` | Abaixo de AA sobre branco | ✅ |
+| 3.9 | Servir o Regimento Escolar em PDF pela API e abrir pela sidebar | `backend/src/rosita/api/routes.py`, `web/index.html`, `tests/test_auth_e_api.py` | Documento institucional indisponível na interface | ✅ |
 
 ## Fase 4 — 🟢 Robustez, qualidade e TCC
 *Rende boa escrita na monografia e defesa.*
@@ -66,7 +67,7 @@
 | Fase 2 — Fluxo e usabilidade | 2.1–2.6 | ✅ 6/6 |
 | Fase 3 — Design e UX | 3.1–3.8 | ✅ 8/8 |
 | Fase 4 — Robustez e TCC | 4.1–4.8 | ✅ 8/8 |
-| **Total** | **27 itens** | **✅ 27/27** |
+| **Total** | **28 itens** | **✅ 28/28** |
 
 Validação: **53 testes pytest verdes**; sintaxe JS e boot do backend OK.
 
