@@ -170,11 +170,12 @@ class RositaAgent:
         pergunta: str,
         historico_previo: List[Dict[str, str]] | None = None,
     ) -> Generator[str, None, None]:
-        """Faz streaming da resposta usando contexto opcional do turno atual.
+        """Faz streaming da resposta usando o histórico prévio do usuário.
 
-        O histórico persistente foi removido do projeto. Quando houver contexto, ele
-        é passado em ``historico_previo``; caso contrário, a conversa continua com
-        apenas a mensagem atual e o prompt do sistema.
+        O agente não armazena mais o histórico — ele é mantido por usuário pela
+        camada de rotas (``HistoryStore``) e passado em ``historico_previo``. A
+        persistência da pergunta e da resposta é responsabilidade de quem chama
+        (gravar apenas em caso de sucesso preserva o comportamento anterior).
         """
         if self.is_busy:
             raise RuntimeError("Agente ocupado processando outra requisição.")

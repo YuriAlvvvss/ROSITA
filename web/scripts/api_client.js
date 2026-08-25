@@ -194,11 +194,15 @@ class RositaApiClient {
   }
 
   async limparHistorico() {
-    return { mensagem: "Histórico removido. A conversa local foi limpa." };
+    const res = await this.request("/api/limpar", { method: "POST" });
+    if (!res.ok) throw new Error(await this._parseErro(res));
+    return res.json();
   }
 
   async obterHistorico() {
-    return { historico: [] };
+    const res = await this.request("/api/historico");
+    if (!res.ok) throw new Error(await this._parseErro(res));
+    return res.json();
   }
 
   async _parseErro(res) {

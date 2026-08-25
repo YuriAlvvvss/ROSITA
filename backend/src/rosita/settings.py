@@ -22,6 +22,7 @@ class Settings:
 
     base_dir: Path
     data_dir: Path
+    history_db_path: Path
     ai_provider: str
     openrouter_api_key: str
     openrouter_model: str
@@ -126,9 +127,18 @@ def load_settings() -> Settings:
     else:
         bundled_data_dir = bundled_data_dir.resolve()
 
+    history_db_path = Path(
+        os.getenv("ROSITA_HISTORY_DB", str(backend_dir / "rosita_history.sqlite3"))
+    ).expanduser()
+    if not history_db_path.is_absolute():
+        history_db_path = (backend_dir / history_db_path).resolve()
+    else:
+        history_db_path = history_db_path.resolve()
+
     return Settings(
         base_dir=backend_dir,
         data_dir=data_dir,
+        history_db_path=history_db_path,
         ai_provider=(os.getenv("ROSITA_AI_PROVIDER") or "openrouter").strip().lower(),
         openrouter_api_key=(os.getenv("ROSITA_OPENROUTER_API_KEY") or "").strip(),
         openrouter_model=(os.getenv("ROSITA_OPENROUTER_MODEL") or "").strip(),

@@ -21,6 +21,7 @@ from rosita.bootstrap import criar_agente
 from rosita.core.agent import RositaAgent
 from rosita.core.ai_client import GatewayClient
 from rosita.settings import Settings, load_settings
+from rosita.utils.history_store import HistoryStore
 from werkzeug.security import generate_password_hash
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -50,6 +51,7 @@ class AgentModelSelectionTests(unittest.TestCase):
         return Settings(
             base_dir=base_dir,
             data_dir=base_dir / "data",
+            history_db_path=base_dir / "data" / "history.sqlite3",
             ai_provider=provider,
             openrouter_api_key=openrouter_key,
             openrouter_model=model if provider == "openrouter" else "",
@@ -378,6 +380,29 @@ class AgentModelSelectionTests(unittest.TestCase):
         payload = res.get_json()
         self.assertEqual(payload["role"], "guest")
         self.assertNotIn("sistema", payload)
+
+    def test_guest_can_clear_chat_history(self):
+        settings = self.make_settings()
+        agent = RositaAgent(settings, "prompt")
+
+        tmpdir = Path(tempfile.mkdtemp())
+        try:
+            store = HistoryStore(tmpdir / "hist.sqlite3")
+            store.append("guest:visitante", "user", "teste")
+
+            app = Flask(__name__)
+            app.secret_key = "test-secret"
+            app.register_blueprint(create_api_blueprint(agent, settings, history_store=store))
+            client = app.test_client()
+            with client.session_transaction() as sess:
+                sess["guest_id"] = "visitante"
+
+            res = client.post("/api/limpar")
+
+            self.assertEqual(res.status_code, 200)
+            self.assertEqual(store.get("guest:visitante"), [])
+        finally:
+            shutil.rmtree(tmpdir, ignore_errors=True)
 
 
 if __name__ == "__main__":
