@@ -8,7 +8,6 @@ import sys
 from dotenv import load_dotenv
 
 # Permite importar o pacote em backend/src sem instalar no ambiente.
-BASE_DIR = Path(__file__).resolve().parent.parent
 BACKEND_DIR = Path(__file__).resolve().parent
 SRC_DIR = BACKEND_DIR / "src"
 if str(SRC_DIR) not in sys.path:
@@ -17,11 +16,21 @@ if str(SRC_DIR) not in sys.path:
 from rosita.app_factory import create_app
 from rosita.settings import load_settings
 
-# Precedência: variáveis já exportadas no ambiente > .env da raiz > backend/.env
-# > backend/env.defaults. Sem override=True, o primeiro valor definido vence.
-load_dotenv(BASE_DIR / ".env")
-load_dotenv(BACKEND_DIR / ".env")
+# Precedência (igual à do docker-compose): variáveis já exportadas no ambiente >
+# .env da raiz > backend/env.admin > backend/env.defaults. Sem override=True o
+# primeiro arquivo que define a chave é quem vale, então a ordem abaixo é do
+# mais específico para o mais genérico.
+load_dotenv(BACKEND_DIR.parent / ".env")
+load_dotenv()
+load_dotenv(BACKEND_DIR / "env.admin")
 load_dotenv(BACKEND_DIR / "env.defaults")
+# A configuração salva pelo painel admin (backend/.env) tem prioridade, para
+# que as escolhas feitas na interface persistam entre reinícios.
+load_dotenv(BACKEND_DIR / ".env", override=True)
+# Carrega credenciais locais da venv se presentes. Isso permite usar
+# .venv/admin_password.env para definir usuário e senha local sem precisar
+# modificar o .env principal.
+load_dotenv(BACKEND_DIR.parent / ".venv" / "admin_password.env", override=True)
 
 # Logging estruturado centralizado (nível controlado por ROSITA_DEBUG).
 _debug = os.getenv("ROSITA_DEBUG", "").strip().lower() in {"1", "true", "yes", "on"}

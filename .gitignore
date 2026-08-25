@@ -13,14 +13,5 @@ backend/rosita_history.sqlite3
 
 .venv/
 
-# Credenciais e ambientes locais
+# Segredos e configuração local (nunca versionar)
 .env
-.env.*
-!.env.example
-backend/.env
-backend/env.admin
-.venv/admin_password.env
-
-# Bancos de dados SQLite locais
-*.sqlite3
-backend/data/*.sqlite3
