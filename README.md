@@ -78,7 +78,7 @@ ROSITA/
 │   ├── compose-entrypoint.sh # legado/não referenciado no docker-compose.yml
 │   ├── env.admin          # versionado (admin + hash)
 │   ├── env.defaults       # versionado (padrões; contém IP interno, ver nota de provedores)
-│   ├── .env               # escrito pelo painel admin (PUT /api/credenciais); NÃO está no .gitignore
+│   ├── .env               # escrito pelo painel admin (PUT /api/credenciais); ignorado pelo .gitignore
 │   ├── requirements.txt   # flask, flask-cors, flask-limiter, gunicorn, python-dotenv, psutil, requests
 │   ├── api/ core/ utils/  # stubs com só __init__.py; código real está em src/rosita/
 │   ├── data/
@@ -214,8 +214,9 @@ ROSITA_USER_PASSWORD_HASH=
   depois `backend/.env` com `override=True`, e por último
   `.venv/admin_password.env` com `override=True` (precedência máxima local).
   O painel admin (`PUT /api/credenciais`, `POST` também aceito) persiste em
-  `backend/.env`, não no `.env` da raiz. Atenção: `.gitignore` ignora só o
-  `.env` da raiz — `backend/.env` **não** está ignorado; não commite chaves nele.
+  `backend/.env`, não no `.env` da raiz. Atenção: o padrão global `.env` do
+  `.gitignore` ignora tanto o `.env` da raiz quanto `backend/.env`; ainda
+  assim, não compartilhe nem commite chaves nesses arquivos.
 - Atenção ao Docker Compose: **hashes scrypt contêm `$`**. Use **sempre aspas
   simples** no `.env`/`backend/.env` (ex.: `ROSITA_ADMIN_PASSWORD_HASH='scrypt:...'`),
   senão o Compose expande `$...` e corrompe o hash (veja o aviso no topo do
@@ -260,7 +261,7 @@ Variáveis adicionais disponíveis no `.env` (veja `.env.example`):
 | `ROSITA_API_HOST` | `0.0.0.0` | Host do Flask/Gunicorn (`settings.py`, `win_run_backend.bat`, Compose força `0.0.0.0:5000` no container) |
 | `ROSITA_WEB_HOST` | `127.0.0.1` | Host do `dev_server.py` local (só dev; `scripts/win_run_web.bat`) |
 | `ROSITA_DATA_DIR` | `backend/data` | Pasta de dados ativa (editável pela UI). No Compose, edições são **efêmeras** (só `rosita_history` tem volume) |
-| `ROSITA_BUNDLED_DATA_DIR` | `src/rosita/default_data` (inexistente) | Fallback de seed; no Compose sobrescrito para `/app/backend/data` (`docker-compose.yml:35`). `backend/Dockerfile:14` também copia para `/app/default-data` (não usado em runtime) |
+| `ROSITA_BUNDLED_DATA_DIR` | `backend/src/rosita/default_data` (inexistente no checkout) | Fallback de seed; no Compose sobrescrito para `/app/backend/data` (`docker-compose.yml:35`). `backend/Dockerfile:14` também copia para `/app/default-data`, mas o Compose usa `/app/backend/data` em runtime |
 | `ROSITA_GPU_NAME` | — | Nome de fallback exibido na UI quando há GPU visível (`CUDA_VISIBLE_DEVICES`/`NVIDIA_VISIBLE_DEVICES`) mas sem `nvidia-smi` (`system_monitor.py`) |
 | `ROSITA_SESSION_COOKIE_SECURE` | `false` | Marque `true` quando servir por HTTPS (cookies de sessão só por TLS) |
 | `ROSITA_MAX_HISTORY` | `5` | Quantidade de mensagens do histórico enviadas ao provedor |
