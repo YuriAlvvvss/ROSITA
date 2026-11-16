@@ -59,6 +59,25 @@ class RositaApiClient {
     return res.json();
   }
 
+  async obterStatusPrivacidade() {
+    const res = await this.request("/api/privacy/status");
+    if (!res.ok) throw new Error(await this._parseErro(res));
+    return res.json();
+  }
+
+  async aceitarPrivacidade(noticeVersion, historyEnabled = true) {
+    const res = await this.request("/api/privacy/consent", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        notice_version: noticeVersion,
+        history_enabled: historyEnabled,
+      }),
+    });
+    if (!res.ok) throw new Error(await this._parseErro(res));
+    return res.json();
+  }
+
   async login(username, password) {
     const res = await this.request("/api/auth/login", {
       method: "POST",
@@ -201,6 +220,18 @@ class RositaApiClient {
 
   async obterHistorico() {
     const res = await this.request("/api/historico");
+    if (!res.ok) throw new Error(await this._parseErro(res));
+    return res.json();
+  }
+
+  async exportarMeusDados() {
+    const res = await this.request("/api/meus-dados");
+    if (!res.ok) throw new Error(await this._parseErro(res));
+    return res.json();
+  }
+
+  async excluirMeusDados() {
+    const res = await this.request("/api/meus-dados", { method: "DELETE" });
     if (!res.ok) throw new Error(await this._parseErro(res));
     return res.json();
   }

@@ -169,6 +169,44 @@ def create_api_blueprint(
             return lambda func: func
         return limiter.limit(regra)
 
+    def _privacy_payload(username: str) -> dict[str, Any]:
+        consent = history_store.get_consent(username) if history_store else None
+        accepted = bool(
+            consent
+            and consent["notice_version"] == settings.privacy_notice_version
+        )
+        history_enabled = (
+            bool(consent["history_enabled"])
+            if consent
+            else settings.history_mode != "disabled"
+        )
+        return {
+            "notice_version": settings.privacy_notice_version,
+            "consent_required": settings.require_privacy_consent,
+            "accepted": accepted,
+            "history_mode": settings.history_mode,
+            "history_retention_days": settings.history_retention_days,
+            "history_enabled": history_enabled,
+        }
+
+    @api_bp.route("/privacy/status", methods=["GET"])
+    def privacy_status() -> Any:
+        return jsonify(_privacy_payload(_usuario_atual()))
+
+    @api_bp.route("/privacy/consent", methods=["POST"])
+    def save_privacy_consent() -> Any:
+        dados = request.get_json(silent=True) or {}
+        if not isinstance(dados, dict) or dados.get("notice_version") != settings.privacy_notice_version:
+            return jsonify({"erro": "Versão do aviso de privacidade inválida."}), 400
+        history_enabled = bool(dados.get("history_enabled", settings.history_mode != "disabled"))
+        if settings.history_mode == "disabled":
+            history_enabled = False
+        if history_store:
+            history_store.save_consent(
+                _usuario_atual(), settings.privacy_notice_version, history_enabled
+            )
+        return jsonify(_privacy_payload(_usuario_atual()))
+
     @api_bp.route("/auth/session", methods=["GET"])
     def auth_session() -> Any:
         return jsonify(_session_payload())
@@ -238,9 +276,14 @@ def create_api_blueprint(
 
         # Captura usuário e histórico fora do gerador (contexto de requisição).
         username = _usuario_atual()
+        privacy = _privacy_payload(username)
+        if privacy["consent_required"] and not privacy["accepted"]:
+            return jsonify({"erro": "Aceite o aviso de privacidade antes de continuar.", **privacy}), 428
         pergunta = str(mensagem).strip()
         historico_previo = (
-            history_store.get(username, limit=settings.max_history) if history_store else []
+            history_store.get(username, limit=settings.max_history)
+            if history_store and privacy["history_enabled"]
+            else []
         )
 
         def gerar_resposta() -> Generator[str, None, None]:
@@ -250,7 +293,7 @@ def create_api_blueprint(
                     resposta += chunk
                     yield _sse_chunk_payload(chunk)
                 # Persiste pergunta e resposta apenas em caso de sucesso.
-                if history_store and username:
+                if history_store and username and privacy["history_enabled"]:
                     history_store.append(username, "user", pergunta)
                     history_store.append(username, "assistant", resposta)
                 yield "data: [FIM]\n\n"
@@ -426,6 +469,17 @@ def create_api_blueprint(
         if history_store:
             history_store.clear(_usuario_atual())
         return jsonify({"mensagem": "Histórico limpo com sucesso."})
+
+    @api_bp.route("/meus-dados", methods=["GET"])
+    def exportar_dados() -> Any:
+        dados = history_store.export_user_data(_usuario_atual()) if history_store else {}
+        return jsonify({"usuario": _usuario_atual(), **dados})
+
+    @api_bp.route("/meus-dados", methods=["DELETE"])
+    def excluir_dados() -> Any:
+        if history_store:
+            history_store.delete_user_data(_usuario_atual())
+        return jsonify({"mensagem": "Dados da sessão excluídos. Aceite novamente o aviso para continuar."})
 
     @api_bp.route("/historico", methods=["GET"])
     def historico() -> Any:

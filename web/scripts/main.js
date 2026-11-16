@@ -25,6 +25,8 @@ class RositaApp {
     this.userInput = document.getElementById("user-input");
     this.sendBtn = document.getElementById("send-btn");
     this.clearBtn = document.getElementById("clear-btn");
+    this.exportDataBtn = document.getElementById("export-data-btn");
+    this.deleteDataBtn = document.getElementById("delete-data-btn");
     this.statusEl = document.getElementById("status") || document.getElementById("status-indicator");
     this.serverInfoEl = document.getElementById("server-info");
     this.systemHostEl = document.getElementById("system-host");
@@ -73,6 +75,10 @@ class RositaApp {
     this.saveProviderBtn = document.getElementById("save-provider-btn");
     this.reloadProviderBtn = document.getElementById("reload-provider-btn");
     this.providerConfigStatusEl = document.getElementById("provider-config-status");
+    this.privacyModal = document.getElementById("privacy-modal");
+    this.privacyForm = document.getElementById("privacy-form");
+    this.privacyHistory = document.getElementById("privacy-history");
+    this.privacyFeedback = document.getElementById("privacy-feedback");
 
     this.session = {
       authenticated: false,
@@ -89,6 +95,12 @@ class RositaApp {
     this.configFilesLoaded = false;
     this.providerConfigLoaded = false;
     this.statusTimer = null;
+    this.privacyState = {
+      consentRequired: false,
+      accepted: true,
+      noticeVersion: "",
+      historyEnabled: true,
+    };
 
     this.bindEvents();
     this.initializeSidebar();
@@ -123,6 +135,8 @@ class RositaApp {
     this.themeToggle?.addEventListener("click", () => this.toggleTheme());
     this.sendBtn?.addEventListener("click", () => this.enviarMensagem());
     this.clearBtn?.addEventListener("click", () => this.limparChat());
+    this.exportDataBtn?.addEventListener("click", () => this.exportarDados());
+    this.deleteDataBtn?.addEventListener("click", () => this.excluirDados());
     this.reloadModelsBtn?.addEventListener("click", () => this.carregarModelos());
     this.modelSelect?.addEventListener("change", () => this.selecionarModelo());
     this.modelSelectAdmin?.addEventListener("change", () => {
@@ -145,6 +159,10 @@ class RositaApp {
     this.providerSelect?.addEventListener("change", () => this.atualizarVisibilidadeProvedor());
     this.saveProviderBtn?.addEventListener("click", () => this.salvarConfiguracaoProvedor());
     this.reloadProviderBtn?.addEventListener("click", () => this.carregarConfiguracaoProvedor());
+    this.privacyForm?.addEventListener("submit", (event) => {
+      event.preventDefault();
+      this.aceitarPrivacidade();
+    });
 
     this.userInput?.addEventListener("keypress", (event) => {
       if (event.key === "Enter" && !this.isAwaitingResponse && this.hasActiveModel) {
@@ -158,6 +176,7 @@ class RositaApp {
     this.showLoading("Carregando...");
     try {
       const payload = await window.rositaApi.obterSessao();
+      await this.carregarPrivacidade();
       if (payload?.authenticated && payload.role === "admin") {
         this.applySession(payload);
         await this.onAppReady(true);
@@ -304,6 +323,46 @@ class RositaApp {
       await this.carregarArquivosConfiguracao(true);
     }
     this.appendWelcomeMessage();
+  }
+
+  async carregarPrivacidade() {
+    try {
+      const payload = await window.rositaApi.obterStatusPrivacidade();
+      this.privacyState = {
+        consentRequired: Boolean(payload.consent_required),
+        accepted: Boolean(payload.accepted),
+        noticeVersion: payload.notice_version || "",
+        historyEnabled: payload.history_enabled !== false,
+      };
+      if (this.privacyState.consentRequired && !this.privacyState.accepted) {
+        this.privacyModal?.classList.remove("hidden");
+      }
+    } catch (_) {
+      // Backends anteriores ao endpoint de privacidade continuam operacionais.
+    }
+  }
+
+  setPrivacyFeedback(message, isError = false) {
+    if (!this.privacyFeedback) return;
+    this.privacyFeedback.textContent = message || "";
+    this.privacyFeedback.classList.toggle("is-error", Boolean(isError));
+  }
+
+  async aceitarPrivacidade() {
+    if (!this.privacyState.noticeVersion) return;
+    this.setPrivacyFeedback("Registrando aceite...");
+    try {
+      const payload = await window.rositaApi.aceitarPrivacidade(
+        this.privacyState.noticeVersion,
+        this.privacyHistory?.checked !== false
+      );
+      this.privacyState.accepted = Boolean(payload.accepted);
+      this.privacyState.historyEnabled = payload.history_enabled !== false;
+      this.privacyModal?.classList.add("hidden");
+      this.setPrivacyFeedback("");
+    } catch (err) {
+      this.setPrivacyFeedback(err.message || "Não foi possível registrar o aceite.", true);
+    }
   }
 
   async login() {
@@ -990,7 +1049,12 @@ class RositaApp {
 
   async enviarMensagem() {
     const texto = (this.userInput.value || "").trim();
-    if (!texto || this.isAwaitingResponse || !this.hasActiveModel) return;
+    if (
+      !texto ||
+      this.isAwaitingResponse ||
+      !this.hasActiveModel ||
+      (this.privacyState.consentRequired && !this.privacyState.accepted)
+    ) return;
 
     this.currentTokens = [];
     this.atualizarTokenStats();
@@ -1024,6 +1088,38 @@ class RositaApp {
       this.updateChatEmptyState();
     } catch (err) {
       this.adicionarMensagem(`Erro ao limpar histórico: ${err.message || String(err)}`, "assistant");
+    }
+  }
+
+  async exportarDados() {
+    try {
+      const dados = await window.rositaApi.exportarMeusDados();
+      const blob = new Blob([JSON.stringify(dados, null, 2)], { type: "application/json" });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = "rosita-meus-dados.json";
+      link.click();
+      URL.revokeObjectURL(url);
+    } catch (err) {
+      this.adicionarMensagem(`Erro ao exportar dados: ${err.message || String(err)}`, "assistant");
+    }
+  }
+
+  async excluirDados() {
+    if (!window.confirm("Excluir o histórico e o consentimento desta sessão? Esta ação não pode ser desfeita.")) {
+      return;
+    }
+    try {
+      await window.rositaApi.excluirMeusDados();
+      if (this.chatContainer) this.chatContainer.innerHTML = "";
+      this.updateChatEmptyState();
+      this.privacyState.accepted = false;
+      if (this.privacyState.consentRequired) {
+        this.privacyModal?.classList.remove("hidden");
+      }
+    } catch (err) {
+      this.adicionarMensagem(`Erro ao excluir dados: ${err.message || String(err)}`, "assistant");
     }
   }
 }

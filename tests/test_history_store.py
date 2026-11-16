@@ -58,3 +58,42 @@ def test_username_vazio_e_ignorado(tmp_path):
     store = HistoryStore(tmp_path / "h.sqlite3")
     store.append("", "user", "sem dono")
     assert store.get("") == []
+
+
+def test_consentimento_e_exportacao_do_usuario(tmp_path):
+    store = HistoryStore(tmp_path / "h.sqlite3")
+    store.append("ana", "user", "mensagem privada")
+    store.save_consent("ana", "2026-11-14", True)
+
+    dados = store.export_user_data("ana")
+
+    assert dados["consentimento"]["notice_version"] == "2026-11-14"
+    assert dados["mensagens"][0]["content"] == "mensagem privada"
+
+
+def test_excluir_dados_remove_historico_e_consentimento(tmp_path):
+    store = HistoryStore(tmp_path / "h.sqlite3")
+    store.append("ana", "user", "mensagem privada")
+    store.save_consent("ana", "2026-11-14", True)
+
+    store.delete_user_data("ana")
+
+    assert store.export_user_data("ana") == {"consentimento": None, "mensagens": []}
+
+
+def test_retentao_zero_preserva_e_dias_remove_mensagens_antigas(tmp_path):
+    store = HistoryStore(tmp_path / "h.sqlite3")
+    store.append("ana", "user", "mensagem recente")
+
+    assert store.purge_older_than(0) == 0
+    assert store.get("ana")[0]["content"] == "mensagem recente"
+
+    with store._lock, store._connect() as con:
+        con.execute(
+            "UPDATE messages SET created_at = datetime('now', '-10 days') "
+            "WHERE username = ?",
+            ("ana",),
+        )
+
+    assert store.purge_older_than(7) == 1
+    assert store.get("ana") == []

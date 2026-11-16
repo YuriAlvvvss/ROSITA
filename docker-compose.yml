@@ -32,6 +32,16 @@ services:
       # Necessário para o CORS liberar a origem do frontend na porta escolhida.
       ROSITA_WEB_PORT: ${ROSITA_WEB_PORT:-37642}
       ROSITA_DEBUG: ${ROSITA_DEBUG:-false}
+      # Produção deve ficar atrás de um proxy TLS. O proxy precisa enviar
+      # X-Forwarded-Proto: https para que o backend aceite as requisições.
+      ROSITA_REQUIRE_HTTPS: ${ROSITA_REQUIRE_HTTPS:-true}
+      ROSITA_SESSION_COOKIE_SECURE: ${ROSITA_SESSION_COOKIE_SECURE:-true}
+      # Produção: manter HTTPS e cookies seguros ativados. Para desenvolvimento
+      # local por HTTP, use `start_system.bat` ou sobrescreva explicitamente.
+      ROSITA_REQUIRE_PRIVACY_CONSENT: ${ROSITA_REQUIRE_PRIVACY_CONSENT:-true}
+      ROSITA_PRIVACY_NOTICE_VERSION: ${ROSITA_PRIVACY_NOTICE_VERSION:-2026-11-14}
+      ROSITA_HISTORY_MODE: ${ROSITA_HISTORY_MODE:-required}
+      ROSITA_HISTORY_RETENTION_DAYS: ${ROSITA_HISTORY_RETENTION_DAYS:-0}
       ROSITA_BUNDLED_DATA_DIR: "/app/backend/data"
       ROSITA_HISTORY_DB: "/data/rosita_history.sqlite3"
       # ATENÇÃO: NÃO declare aqui credenciais, hashes, chaves de API nem nada que
@@ -49,10 +59,8 @@ services:
       - "host.docker.internal:host-gateway"
     volumes:
       - rosita_history:/data
-    ports:
-      - "${ROSITA_API_PORT:-18500}:5000"
     healthcheck:
-      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:5000/api/status', timeout=5)"]
+      test: ["CMD", "python", "-c", "import urllib.request; request = urllib.request.Request('http://127.0.0.1:5000/api/status', headers={'X-Forwarded-Proto': 'https'}); urllib.request.urlopen(request, timeout=5)"]
       interval: 15s
       timeout: 10s
       retries: 10

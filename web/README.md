@@ -2,6 +2,13 @@
 
 Interface web oficial do projeto (HTML, CSS e JavaScript sem bundler).
 
+## HTTPS em produção
+
+O container web deve ficar atrás de um proxy reverso que termine TLS.
+Configure esse proxy para encaminhar `X-Forwarded-Proto: https` ao backend.
+No Docker Compose, o backend recusa requisições sem esse indicador, não expõe
+sua porta diretamente e usa cookies de sessão Secure.
+
 ## Temas
 
 A interface tem **tema claro** e **tema escuro**, controlados pelo atributo

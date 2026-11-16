@@ -92,6 +92,18 @@
           </svg>
           <span class="nav-label">Limpar</span>
         </button>
+        <button class="nav-item" id="export-data-btn" title="Baixar meus dados">
+          <svg class="nav-icon" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+            <path d="M5 20h14v-2H5v2zM19 9h-4V3H9v6H5l7 7 7-7z"/>
+          </svg>
+          <span class="nav-label">Baixar meus dados</span>
+        </button>
+        <button class="nav-item" id="delete-data-btn" title="Excluir meus dados">
+          <svg class="nav-icon" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+            <path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM8 9h8v10H8V9zm7.5-5-1-1h-5l-1 1H5v2h14V4z"/>
+          </svg>
+          <span class="nav-label">Excluir meus dados</span>
+        </button>
       </nav>
 
       <div class="sidebar-footer">
@@ -470,6 +482,31 @@
     <div class="loading-card">
       <div class="spinner" aria-hidden="true"></div>
       <p id="loading-text">Carregando...</p>
+    </div>
+  </div>
+
+  <!-- PRIVACY NOTICE -->
+  <div id="privacy-modal" class="admin-login-modal privacy-modal hidden" role="dialog" aria-modal="true" aria-labelledby="privacy-title">
+    <div class="admin-login-backdrop"></div>
+    <div class="admin-login-card privacy-card">
+      <div class="auth-header">
+        <div class="auth-logo">
+          <span class="sidebar-logo-mark" aria-hidden="true">R</span>
+        </div>
+        <h2 id="privacy-title">Aviso de privacidade</h2>
+        <p class="auth-tagline">A ROSITA processa sua mensagem para responder à conversa. O histórico pode ser salvo nesta instalação e parte do contexto pode ser enviada ao provedor de IA configurado. Evite informar dados pessoais desnecessários.</p>
+      </div>
+      <form id="privacy-form" class="auth-form">
+        <label class="privacy-choice">
+          <input id="privacy-history" type="checkbox" checked />
+          <span>Permitir que as mensagens sejam salvas no histórico desta instalação.</span>
+        </label>
+        <p class="auth-feedback">Consulte o responsável pela aplicação para saber como exercer seus direitos sobre os dados.</p>
+        <div class="admin-login-actions">
+          <button class="btn-primary" type="submit">Aceitar e continuar</button>
+        </div>
+        <p id="privacy-feedback" class="auth-feedback"></p>
+      </form>
     </div>
   </div>
 

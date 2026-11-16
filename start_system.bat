@@ -334,6 +334,9 @@ set "ROSITA_AI_PROVIDER=%AI_PROVIDER%"
 set "ROSITA_OPENROUTER_API_KEY=%OPENROUTER_API_KEY%"
 set "ROSITA_OPENROUTER_MODEL=%OPENROUTER_MODEL%"
 set "ROSITA_GATEWAY_URL=%GATEWAY_URL%"
+REM Execucao local usa HTTP; producao Docker exige TLS explicitamente.
+set "ROSITA_REQUIRE_HTTPS=false"
+set "ROSITA_SESSION_COOKIE_SECURE=false"
 exit /b 0
 
 :service_alive

@@ -41,6 +41,16 @@ class HistoryStore:
             con.execute(
                 "CREATE INDEX IF NOT EXISTS idx_messages_username ON messages(username, id)"
             )
+            con.execute(
+                """
+                CREATE TABLE IF NOT EXISTS privacy_consents (
+                    username TEXT PRIMARY KEY,
+                    notice_version TEXT NOT NULL,
+                    history_enabled INTEGER NOT NULL DEFAULT 1,
+                    accepted_at TEXT NOT NULL DEFAULT (datetime('now'))
+                )
+                """
+            )
 
     def append(self, username: str, role: str, content: str) -> None:
         """Acrescenta uma mensagem ao histórico do usuário."""
@@ -81,3 +91,81 @@ class HistoryStore:
             return
         with self._lock, self._connect() as con:
             con.execute("DELETE FROM messages WHERE username = ?", (username,))
+
+    def get_consent(self, username: str) -> Optional[Dict[str, str | int]]:
+        if not username:
+            return None
+        with self._lock, self._connect() as con:
+            row = con.execute(
+                "SELECT notice_version, history_enabled, accepted_at "
+                "FROM privacy_consents WHERE username = ?",
+                (username,),
+            ).fetchone()
+        if row is None:
+            return None
+        return {
+            "notice_version": row[0],
+            "history_enabled": bool(row[1]),
+            "accepted_at": row[2],
+        }
+
+    def save_consent(self, username: str, notice_version: str, history_enabled: bool) -> None:
+        if not username:
+            return
+        with self._lock, self._connect() as con:
+            con.execute(
+                "INSERT INTO privacy_consents "
+                "(username, notice_version, history_enabled) VALUES (?, ?, ?) "
+                "ON CONFLICT(username) DO UPDATE SET notice_version=excluded.notice_version, "
+                "history_enabled=excluded.history_enabled, accepted_at=datetime('now')",
+                (username, notice_version, int(history_enabled)),
+            )
+
+    def export_user_data(self, username: str) -> Dict[str, object]:
+        if not username:
+            return {"consentimento": None, "mensagens": []}
+        with self._lock, self._connect() as con:
+            messages = con.execute(
+                "SELECT role, content, created_at FROM messages "
+                "WHERE username = ? ORDER BY id ASC",
+                (username,),
+            ).fetchall()
+            consent_row = con.execute(
+                "SELECT notice_version, history_enabled, accepted_at "
+                "FROM privacy_consents WHERE username = ?",
+                (username,),
+            ).fetchone()
+        consent = (
+            {
+                "notice_version": consent_row[0],
+                "history_enabled": bool(consent_row[1]),
+                "accepted_at": consent_row[2],
+            }
+            if consent_row
+            else None
+        )
+        return {
+            "consentimento": consent,
+            "mensagens": [
+                {"role": role, "content": content, "created_at": created_at}
+                for role, content, created_at in messages
+            ],
+        }
+
+    def delete_user_data(self, username: str) -> None:
+        if not username:
+            return
+        with self._lock, self._connect() as con:
+            con.execute("DELETE FROM messages WHERE username = ?", (username,))
+            con.execute("DELETE FROM privacy_consents WHERE username = ?", (username,))
+
+    def purge_older_than(self, retention_days: int) -> int:
+        """Remove mensagens antigas; zero mantém a retenção atual indefinida."""
+        if retention_days <= 0:
+            return 0
+        with self._lock, self._connect() as con:
+            cursor = con.execute(
+                "DELETE FROM messages WHERE created_at < datetime('now', ?)",
+                (f"-{retention_days} days",),
+            )
+            return cursor.rowcount

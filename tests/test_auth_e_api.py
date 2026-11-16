@@ -160,3 +160,36 @@ def test_rate_limit_no_login(contexto):
         _login(client, "x", "y").status_code for _ in range(11)
     ]
     assert 429 in codigos
+
+
+def test_privacidade_exporta_e_exclui_dados_do_visitante(contexto):
+    app, db_path = contexto
+    store = HistoryStore(db_path)
+    store.append("guest:teste", "user", "mensagem do visitante")
+    client = app.test_client()
+    with client.session_transaction() as sess:
+        sess["guest_id"] = "teste"
+
+    exportacao = client.get("/api/meus-dados")
+    assert exportacao.status_code == 200
+    assert exportacao.get_json()["mensagens"][0]["content"] == "mensagem do visitante"
+
+    exclusao = client.delete("/api/meus-dados")
+    assert exclusao.status_code == 200
+    assert store.get("guest:teste") == []
+
+
+def test_chat_exige_consentimento_quando_configurado(tmp_path, monkeypatch):
+    monkeypatch.setenv("ROSITA_HISTORY_DB", str(tmp_path / "hist.sqlite3"))
+    monkeypatch.setenv("ROSITA_SECRET_KEY", "chave-de-teste")
+    monkeypatch.setenv("ROSITA_AI_PROVIDER", "gateway")
+    monkeypatch.setenv("ROSITA_GATEWAY_URL", "http://teste-local:8000")
+    monkeypatch.setenv("ROSITA_REQUIRE_PRIVACY_CONSENT", "true")
+    monkeypatch.setenv("ROSITA_ADMIN_PASSWORD_HASH", generate_password_hash("admin123"))
+    monkeypatch.setenv("ROSITA_USER_PASSWORD_HASH", generate_password_hash("usuario123"))
+
+    app = create_app()
+    resposta = app.test_client().post("/api/chat", json={"mensagem": "oi"})
+
+    assert resposta.status_code == 428
+    assert resposta.get_json()["consent_required"] is True

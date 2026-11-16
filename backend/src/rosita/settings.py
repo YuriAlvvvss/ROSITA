@@ -38,10 +38,15 @@ class Settings:
     bundled_data_dir: Path | None = None
     secret_key: str = "rosita-dev-secret"
     session_cookie_secure: bool = False
+    require_https: bool = False
     admin_username: str = "admin"
     admin_password_hash: str = ""
     user_username: str = "usuario"
     user_password_hash: str = ""
+    privacy_notice_version: str = "2026-11-14"
+    require_privacy_consent: bool = False
+    history_mode: str = "required"
+    history_retention_days: int = 0
 
 
 def _env_bool(name: str, default: bool) -> bool:
@@ -159,6 +164,7 @@ def load_settings() -> Settings:
         bundled_data_dir=bundled_data_dir,
         secret_key=_resolve_secret_key(),
         session_cookie_secure=_env_bool("ROSITA_SESSION_COOKIE_SECURE", False),
+        require_https=_env_bool("ROSITA_REQUIRE_HTTPS", False),
         admin_username=(os.getenv("ROSITA_ADMIN_USERNAME") or "admin").strip(),
         admin_password_hash=_resolve_password_hash(
             "ROSITA_ADMIN_PASSWORD_HASH", "ROSITA_ADMIN_PASSWORD", None, "admin"
@@ -167,5 +173,9 @@ def load_settings() -> Settings:
         user_password_hash=_resolve_password_hash(
             "ROSITA_USER_PASSWORD_HASH", "ROSITA_USER_PASSWORD", None, "usuario"
         ),
+        privacy_notice_version=(os.getenv("ROSITA_PRIVACY_NOTICE_VERSION") or "2026-11-14").strip(),
+        require_privacy_consent=_env_bool("ROSITA_REQUIRE_PRIVACY_CONSENT", False),
+        history_mode=(os.getenv("ROSITA_HISTORY_MODE") or "required").strip().lower(),
+        history_retention_days=max(0, int(os.getenv("ROSITA_HISTORY_RETENTION_DAYS", "0"))),
     )
 

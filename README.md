@@ -64,6 +64,8 @@ só `.txt` é editável pela UI).
   compositor (largura alinhada à área de mensagens) é o mesmo nos dois temas.
 - **Múltiplos provedores de IA** alternáveis em runtime pela interface admin.
 - **Healthcheck** (`/api/health`) que verifica o provedor de IA.
+- **Controles de privacidade** com aviso versionado, escolha de armazenamento,
+  exportação e exclusão dos dados da sessão.
 
 ## Estrutura padronizada
 
@@ -249,6 +251,26 @@ ROSITA_HISTORY_DB=backend/rosita_history.sqlite3
 No Docker Compose o backend usa `ROSITA_HISTORY_DB=/data/rosita_history.sqlite3`
 com volume nomeado `rosita_history` (persistente entre `up`/`down`).
 
+O armazenamento pode ser controlado pelo usuário no aviso de privacidade. A
+opção desmarcada envia a conversa ao provedor de IA, mas não a grava no SQLite.
+O modo padrão permanece compatível com o comportamento anterior e pode ser
+ajustado por `ROSITA_HISTORY_MODE`.
+
+O prazo automático de retenção é configurado por
+`ROSITA_HISTORY_RETENTION_DAYS`. O valor `0` mantém a retenção atual; um valor
+positivo remove mensagens mais antigas que o prazo durante a inicialização do
+backend. A limpeza não remove cópias que possam existir em backups externos ou
+nos provedores de IA.
+
+Na interface, os comandos **Baixar meus dados** e **Excluir meus dados** tratam
+os dados associados à sessão atual. A exportação produz JSON com mensagens e
+registro de consentimento. A exclusão remove mensagens e consentimento do
+SQLite; ela não apaga dados já enviados a terceiros.
+
+O aviso técnico não substitui a definição jurídica do controlador, da base
+legal, dos prazos, do encarregado ou dos procedimentos para titulares. Esses
+itens devem ser configurados pela instituição antes do uso com dados reais.
+
 ## Ajustes opcionais
 
 Variáveis adicionais disponíveis no `.env` (veja `.env.example`):
@@ -263,7 +285,12 @@ Variáveis adicionais disponíveis no `.env` (veja `.env.example`):
 | `ROSITA_DATA_DIR` | `backend/data` | Pasta de dados ativa (editável pela UI). No Compose, edições são **efêmeras** (só `rosita_history` tem volume) |
 | `ROSITA_BUNDLED_DATA_DIR` | `backend/src/rosita/default_data` (inexistente no checkout) | Fallback de seed; no Compose sobrescrito para `/app/backend/data` (`docker-compose.yml:35`). `backend/Dockerfile:14` também copia para `/app/default-data`, mas o Compose usa `/app/backend/data` em runtime |
 | `ROSITA_GPU_NAME` | — | Nome de fallback exibido na UI quando há GPU visível (`CUDA_VISIBLE_DEVICES`/`NVIDIA_VISIBLE_DEVICES`) mas sem `nvidia-smi` (`system_monitor.py`) |
-| `ROSITA_SESSION_COOKIE_SECURE` | `false` | Marque `true` quando servir por HTTPS (cookies de sessão só por TLS) |
+| `ROSITA_SESSION_COOKIE_SECURE` | `false` local / `true` Compose | Ativa cookies de sessão somente por TLS |
+| `ROSITA_REQUIRE_HTTPS` | `false` local / `true` Compose | Recusa requisições sem HTTPS; o proxy TLS deve enviar `X-Forwarded-Proto: https` |
+| `ROSITA_REQUIRE_PRIVACY_CONSENT` | `false` local / `true` Compose | Exige aceite do aviso antes do primeiro chat |
+| `ROSITA_PRIVACY_NOTICE_VERSION` | `2026-11-14` | Versão do aviso registrada no consentimento |
+| `ROSITA_HISTORY_MODE` | `required` | `required`, `optional` ou `disabled`; controla a persistência do histórico |
+| `ROSITA_HISTORY_RETENTION_DAYS` | `0` | Remove mensagens mais antigas que o prazo na inicialização; `0` desativa a limpeza automática |
 | `ROSITA_MAX_HISTORY` | `5` | Quantidade de mensagens do histórico enviadas ao provedor |
 | `ROSITA_MAX_INPUT_CHARS` | `1000` | Limite de caracteres por mensagem |
 | `ROSITA_NUM_PREDICT` | `256` | Tamanho máximo da resposta gerada |
@@ -316,6 +343,10 @@ O script Linux foi reforçado para um cenário mais robusto:
 - valida o provedor de IA configurado (Open Router exige `KEY` + `MODEL`; Gateway exige `URL`);
 - valida backend e web por checagem real de resposta;
 - grava logs persistentes na pasta `logs/` (`startup.log`, `backend.log`, `web.log`).
+
+No modo local, a interface e o backend usam HTTP em `127.0.0.1`; os scripts
+`start_system.bat` e `scripts/win_run_backend.bat` definem explicitamente
+`ROSITA_REQUIRE_HTTPS=false` e `ROSITA_SESSION_COOKIE_SECURE=false`.
 
 Para ambiente leve, como MiniOS, basta configurar o provedor no `.env`:
 
@@ -391,6 +422,19 @@ inexistente (nunca atingido quando `rosita.settings` existe).
 docker compose up -d --build
 ```
 
+Em produção, o Compose mantém obrigatoriamente:
+
+```env
+ROSITA_REQUIRE_HTTPS=true
+ROSITA_SESSION_COOKIE_SECURE=true
+```
+
+A aplicação deve ficar atrás de um proxy TLS real. Esse proxy precisa
+encaminhar `X-Forwarded-Proto: https` até o Nginx/backend. Não publique o
+Compose diretamente em HTTP na internet. Para um teste local via Docker, use
+um `.env` de desenvolvimento que sobrescreva explicitamente ambos os valores
+com `false`.
+
 O `docker-compose.yml` padrão não exige GPU no host da ROSITA. Com OpenRouter o
 processamento é na nuvem (o desempenho depende da rede e do modelo na nuvem);
 com gateway local, o desempenho depende do servidor do gateway.
@@ -432,6 +476,9 @@ leve na nuvem (ex.: `openai/gpt-4o-mini`).
 - `POST /api/auth/login` (rate limit 10/min; **apenas admin**), `POST /api/auth/logout`, `GET /api/auth/session`
 - `POST /api/chat` (rate limit 20/min; resposta em SSE)
 - `GET /api/historico`, `POST /api/limpar` (do usuário logado ou do visitante anônimo da sessão)
+- `GET /api/privacy/status`, `POST /api/privacy/consent` (aviso e consentimento versionado)
+- `GET /api/meus-dados` (exportação JSON dos dados da sessão)
+- `DELETE /api/meus-dados` (exclusão do histórico e consentimento da sessão)
 - `GET /api/provedores` (admin)
 - `POST /api/provedores/trocar` (admin; body: `{ "provedor": "openrouter" | "gateway" }`; limpa o modelo ativo)
 - `GET /api/models`, `POST /api/models/select` (admin; o modelo precisa estar na lista do provedor ativo)

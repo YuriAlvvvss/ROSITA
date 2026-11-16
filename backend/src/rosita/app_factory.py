@@ -5,7 +5,7 @@ from __future__ import annotations
 import logging
 import os
 
-from flask import Flask, jsonify
+from flask import Flask, jsonify, request
 from flask_cors import CORS
 from werkzeug.middleware.proxy_fix import ProxyFix
 
@@ -58,6 +58,9 @@ def create_app() -> Flask:
     settings = load_settings()
     agent = criar_agente(settings)
     history_store = HistoryStore(settings.history_db_path)
+    removed_history = history_store.purge_older_than(settings.history_retention_days)
+    if removed_history:
+        logger.info("Histórico antigo removido pela política de retenção: %s mensagens", removed_history)
 
     app = Flask(__name__)
     limiter = _build_limiter()
@@ -66,6 +69,12 @@ def create_app() -> Flask:
     app.config["SESSION_COOKIE_HTTPONLY"] = True
     app.config["SESSION_COOKIE_SAMESITE"] = "Lax"
     app.config["SESSION_COOKIE_SECURE"] = settings.session_cookie_secure
+
+    @app.before_request
+    def require_https():
+        if settings.require_https and not request.is_secure:
+            return jsonify({"erro": "HTTPS é obrigatório"}), 400
+        return None
 
     cors_origins = [
         "http://127.0.0.1:18080",

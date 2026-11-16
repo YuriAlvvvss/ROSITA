@@ -9,6 +9,8 @@ if not exist "%PY%" (
 )
 if not defined ROSITA_API_HOST set "ROSITA_API_HOST=0.0.0.0"
 if not defined ROSITA_API_PORT set "ROSITA_API_PORT=18500"
+set "ROSITA_REQUIRE_HTTPS=false"
+set "ROSITA_SESSION_COOKIE_SECURE=false"
 title ROSITA Backend
 echo Iniciando backend em %ROSITA_API_HOST%:%ROSITA_API_PORT% ...
 "%PY%" app.py
