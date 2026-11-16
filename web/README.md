@@ -44,6 +44,11 @@ As credenciais de provedores são campos de segredo de API, não de senha de
 login. Eles usam `autocomplete="new-password"` e atributos de exclusão de
 gerenciadores conhecidos; o backend nunca devolve as chaves ao navegador.
 
+O aviso de privacidade é confirmado por versão. Após o aceite, a decisão é
+lembrada localmente e sincronizada com o servidor sem exibir o modal a cada
+recarregamento. A marca local é removida quando o usuário solicita a exclusão
+dos próprios dados; uma nova versão do aviso pode solicitar nova confirmação.
+
 Este é o mesmo mecanismo usado por `start_system.bat`, `start_system.sh` e
 `scripts/win_run_web.bat`.
 

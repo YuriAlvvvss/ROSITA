@@ -82,6 +82,7 @@ class RositaApp {
     this.privacyForm = document.getElementById("privacy-form");
     this.privacyHistory = document.getElementById("privacy-history");
     this.privacyFeedback = document.getElementById("privacy-feedback");
+    this.privacyConsentKey = "rosita-privacy-consent";
 
     this.session = {
       authenticated: false,
@@ -336,6 +337,7 @@ class RositaApp {
   }
 
   async carregarPrivacidade() {
+    let consentimentoLocal = this.obterConsentimentoLocal();
     try {
       const payload = await window.rositaApi.obterStatusPrivacidade();
       this.privacyState = {
@@ -344,10 +346,49 @@ class RositaApp {
         noticeVersion: payload.notice_version || "",
         historyEnabled: payload.history_enabled !== false,
       };
+
+      consentimentoLocal = this.obterConsentimentoLocal(this.privacyState.noticeVersion);
+      if (this.privacyState.accepted) {
+        this.salvarConsentimentoLocal();
+        this.privacyModal?.classList.add("hidden");
+        return;
+      }
+
+      if (this.privacyState.consentRequired && consentimentoLocal?.accepted) {
+        this.privacyState.accepted = true;
+        this.privacyState.historyEnabled = consentimentoLocal.historyEnabled;
+        this.privacyModal?.classList.add("hidden");
+        try {
+          const sincronizado = await window.rositaApi.aceitarPrivacidade(
+            this.privacyState.noticeVersion,
+            this.privacyState.historyEnabled
+          );
+          this.privacyState.accepted = Boolean(sincronizado.accepted);
+          this.privacyState.historyEnabled = sincronizado.history_enabled !== false;
+          this.salvarConsentimentoLocal();
+        } catch (err) {
+          console.warn("Não foi possível sincronizar o consentimento salvo localmente.", err);
+        }
+        return;
+      }
+
       if (this.privacyState.consentRequired && !this.privacyState.accepted) {
         this.privacyModal?.classList.remove("hidden");
+      } else {
+        this.privacyModal?.classList.add("hidden");
       }
     } catch (err) {
+      if (consentimentoLocal?.accepted) {
+        this.privacyState = {
+          consentRequired: true,
+          accepted: true,
+          noticeVersion: consentimentoLocal.noticeVersion,
+          historyEnabled: consentimentoLocal.historyEnabled,
+        };
+        this.privacyModal?.classList.add("hidden");
+        return;
+      }
+
       this.privacyState = {
         consentRequired: true,
         accepted: false,
@@ -368,6 +409,53 @@ class RositaApp {
     this.privacyFeedback.classList.toggle("is-error", Boolean(isError));
   }
 
+  obterConsentimentoLocal(noticeVersion = "") {
+    try {
+      const raw = window.localStorage.getItem(this.privacyConsentKey);
+      if (!raw) return null;
+      const consentimento = JSON.parse(raw);
+      if (
+        !consentimento ||
+        consentimento.accepted !== true ||
+        (noticeVersion && consentimento.noticeVersion !== noticeVersion)
+      ) {
+        return null;
+      }
+      return {
+        accepted: true,
+        noticeVersion: String(consentimento.noticeVersion || ""),
+        historyEnabled: consentimento.historyEnabled !== false,
+      };
+    } catch (error) {
+      console.warn("Não foi possível ler o consentimento local.", error);
+      return null;
+    }
+  }
+
+  salvarConsentimentoLocal() {
+    if (!this.privacyState.noticeVersion || !this.privacyState.accepted) return;
+    try {
+      window.localStorage.setItem(
+        this.privacyConsentKey,
+        JSON.stringify({
+          accepted: true,
+          noticeVersion: this.privacyState.noticeVersion,
+          historyEnabled: this.privacyState.historyEnabled,
+        })
+      );
+    } catch (error) {
+      console.warn("Não foi possível salvar o consentimento local.", error);
+    }
+  }
+
+  limparConsentimentoLocal() {
+    try {
+      window.localStorage.removeItem(this.privacyConsentKey);
+    } catch (error) {
+      console.warn("Não foi possível remover o consentimento local.", error);
+    }
+  }
+
   async aceitarPrivacidade() {
     if (!this.privacyState.noticeVersion) {
       this.setPrivacyFeedback(
@@ -385,6 +473,7 @@ class RositaApp {
       this.privacyState.accepted = Boolean(payload.accepted);
       this.privacyState.historyEnabled = payload.history_enabled !== false;
       if (this.privacyState.accepted) {
+        this.salvarConsentimentoLocal();
         this.privacyModal?.classList.add("hidden");
         this.setPrivacyFeedback("");
       } else {
@@ -1235,6 +1324,7 @@ class RositaApp {
       if (this.chatContainer) this.chatContainer.innerHTML = "";
       this.updateChatEmptyState();
       this.privacyState.accepted = false;
+      this.limparConsentimentoLocal();
       this.limparHistoricoVisual();
       if (this.historySectionIsActive()) {
         this.setHistoryStatus("");
