@@ -449,20 +449,95 @@ body {
 }
 
 .privacy-card {
-  width: min(100%, 560px);
+  width: min(100%, 500px);
+  padding: 26px 26px 24px;
+}
+
+.privacy-card .auth-header {
+  margin-bottom: 20px;
+}
+
+.privacy-card .auth-logo {
+  width: 52px;
+  height: 52px;
+  margin-bottom: 10px;
+}
+
+.privacy-card .auth-logo .sidebar-logo-mark {
+  width: 44px;
+  height: 44px;
+  font-size: 21px;
+}
+
+.privacy-card .auth-header h2 {
+  font-size: 22px;
+}
+
+.privacy-card .auth-form {
+  gap: 12px;
+}
+
+.privacy-summary {
+  padding: 11px 13px;
+  border: 1px solid var(--color-border);
+  border-radius: 12px;
+  background: var(--color-surface-muted);
+}
+
+.privacy-summary p {
+  margin: 0;
+  color: var(--color-text-muted);
+  font-size: 13px;
+  line-height: 1.5;
 }
 
 .privacy-choice {
   display: flex;
   gap: 12px;
   align-items: flex-start;
+  padding: 13px;
+  border: 1px solid var(--color-border-strong);
+  border-radius: 12px;
+  background: rgba(124, 58, 237, 0.08);
   color: var(--color-text-muted);
+  cursor: pointer;
   line-height: 1.5;
+  transition: border-color 0.15s ease, background 0.15s ease;
+}
+
+.privacy-choice:hover {
+  border-color: var(--color-primary);
+  background: rgba(124, 58, 237, 0.13);
 }
 
 .privacy-choice input {
   margin-top: 4px;
   accent-color: var(--color-primary);
+  flex-shrink: 0;
+}
+
+.privacy-choice span {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.privacy-choice strong {
+  color: var(--color-text);
+  font-size: 13px;
+}
+
+.privacy-choice small {
+  color: var(--color-text-muted);
+  font-size: 12px;
+  line-height: 1.4;
+}
+
+.privacy-note {
+  margin: 0;
+  color: var(--color-text-faint);
+  font-size: 11px;
+  line-height: 1.45;
 }
 
 .admin-login-actions {
@@ -475,6 +550,16 @@ body {
 .admin-login-actions .btn-secondary {
   flex: 1;
   padding: 12px 16px;
+}
+
+@media (max-width: 520px) {
+  .admin-login-modal {
+    padding: 16px;
+  }
+
+  .privacy-card {
+    padding: 22px 18px 20px;
+  }
 }
 
 .nav-item--admin-only.hidden {

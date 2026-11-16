@@ -178,20 +178,26 @@ class RositaApp {
   async initialize() {
     this.applySession({ authenticated: false, role: "guest" });
     this.showLoading("Carregando...");
+    let payload = null;
     try {
-      const payload = await window.rositaApi.obterSessao();
+      payload = await window.rositaApi.obterSessao();
+    } catch (err) {
+      console.error("Não foi possível consultar a sessão.", err);
+    }
+
+    try {
       await this.carregarPrivacidade();
       if (payload?.authenticated && payload.role === "admin") {
         this.applySession(payload);
         await this.onAppReady(true);
       } else {
         if (payload?.authenticated && payload.role !== "admin") {
-          await window.rositaApi.logout().catch(() => {});
+          await window.rositaApi.logout().catch((err) => {
+            console.warn("Não foi possível encerrar a sessão inválida.", err);
+          });
         }
         await this.onAppReady(false);
       }
-    } catch {
-      await this.onAppReady(false);
     } finally {
       this.hideLoading();
     }
@@ -341,8 +347,18 @@ class RositaApp {
       if (this.privacyState.consentRequired && !this.privacyState.accepted) {
         this.privacyModal?.classList.remove("hidden");
       }
-    } catch (_) {
-      // Backends anteriores ao endpoint de privacidade continuam operacionais.
+    } catch (err) {
+      this.privacyState = {
+        consentRequired: true,
+        accepted: false,
+        noticeVersion: "",
+        historyEnabled: false,
+      };
+      this.setPrivacyFeedback(
+        `Não foi possível verificar o aviso de privacidade. ${err.message || String(err)} Recarregue a página após corrigir a conexão.`,
+        true
+      );
+      this.privacyModal?.classList.remove("hidden");
     }
   }
 
@@ -353,7 +369,13 @@ class RositaApp {
   }
 
   async aceitarPrivacidade() {
-    if (!this.privacyState.noticeVersion) return;
+    if (!this.privacyState.noticeVersion) {
+      this.setPrivacyFeedback(
+        "O aviso ainda não foi carregado pelo servidor. Recarregue a página e tente novamente.",
+        true
+      );
+      return;
+    }
     this.setPrivacyFeedback("Registrando aceite...");
     try {
       const payload = await window.rositaApi.aceitarPrivacidade(
@@ -362,8 +384,15 @@ class RositaApp {
       );
       this.privacyState.accepted = Boolean(payload.accepted);
       this.privacyState.historyEnabled = payload.history_enabled !== false;
-      this.privacyModal?.classList.add("hidden");
-      this.setPrivacyFeedback("");
+      if (this.privacyState.accepted) {
+        this.privacyModal?.classList.add("hidden");
+        this.setPrivacyFeedback("");
+      } else {
+        this.setPrivacyFeedback(
+          "O servidor não confirmou o aceite do aviso de privacidade.",
+          true
+        );
+      }
     } catch (err) {
       this.setPrivacyFeedback(err.message || "Não foi possível registrar o aceite.", true);
     }

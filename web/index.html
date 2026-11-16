@@ -22,7 +22,7 @@
       }
     })();
   </script>
-  <link rel="stylesheet" href="/styles/main.css?v=20260820d" />
+  <link rel="stylesheet" href="/styles/main.css?v=20261116b" />
 </head>
 <body>
   <!-- APP VIEW -->
@@ -509,15 +509,21 @@
         <div class="auth-logo">
           <span class="sidebar-logo-mark" aria-hidden="true">R</span>
         </div>
-        <h2 id="privacy-title">Aviso de privacidade</h2>
-        <p class="auth-tagline">A ROSITA processa sua mensagem para responder à conversa. O histórico pode ser salvo nesta instalação e parte do contexto pode ser enviada ao provedor de IA configurado. Evite informar dados pessoais desnecessários.</p>
+        <h2 id="privacy-title">Antes de começar</h2>
+        <p class="auth-tagline">A ROSITA processa suas mensagens para responder à conversa.</p>
       </div>
       <form id="privacy-form" class="auth-form">
+        <div class="privacy-summary">
+          <p>Parte do contexto pode ser enviada ao provedor de IA configurado. Evite informar dados pessoais desnecessários.</p>
+        </div>
         <label class="privacy-choice">
           <input id="privacy-history" type="checkbox" checked />
-          <span>Permitir que as mensagens sejam salvas no histórico desta instalação.</span>
+          <span>
+            <strong>Salvar minhas mensagens nesta instalação</strong>
+            <small>Você poderá limpar, baixar ou excluir esses dados depois.</small>
+          </span>
         </label>
-        <p class="auth-feedback">Consulte o responsável pela aplicação para saber como exercer seus direitos sobre os dados.</p>
+        <p class="privacy-note">Consulte o responsável pela aplicação para saber como exercer seus direitos sobre os dados.</p>
         <div class="admin-login-actions">
           <button class="btn-primary" type="submit">Aceitar e continuar</button>
         </div>
@@ -527,8 +533,8 @@
   </div>
 
   <!-- SCRIPTS -->
-  <script src="/scripts/config.js?v=20260806b" defer></script>
-  <script src="/scripts/api_client.js?v=20260806b" defer></script>
-  <script src="/scripts/main.js?v=20260806b" defer></script>
+  <script src="/scripts/config.js?v=20261116b" defer></script>
+  <script src="/scripts/api_client.js?v=20261116b" defer></script>
+  <script src="/scripts/main.js?v=20261116b" defer></script>
 </body>
 </html>
