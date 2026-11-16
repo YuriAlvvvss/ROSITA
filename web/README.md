@@ -32,6 +32,14 @@ backend. Para apontar para outro backend, defina `ROSITA_BACKEND_URL`
 (padrão: `http://127.0.0.1:18500`). Porta padrão: `18080` (configure com
 `ROSITA_WEB_PORT`).
 
+## Responsividade
+
+O layout usa três faixas de viewport: sidebar completa acima de 1100 px,
+sidebar compacta entre 701 e 1100 px e barra superior abaixo de 700 px.
+Modais com conteúdo variável possuem rolagem própria para permanecerem
+acessíveis em telas baixas e usam a altura dinâmica da viewport móvel quando
+disponível.
+
 Este é o mesmo mecanismo usado por `start_system.bat`, `start_system.sh` e
 `scripts/win_run_web.bat`.
 
