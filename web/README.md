@@ -40,6 +40,10 @@ Modais com conteúdo variável possuem rolagem própria para permanecerem
 acessíveis em telas baixas e usam a altura dinâmica da viewport móvel quando
 disponível.
 
+As credenciais de provedores são campos de segredo de API, não de senha de
+login. Eles usam `autocomplete="new-password"` e atributos de exclusão de
+gerenciadores conhecidos; o backend nunca devolve as chaves ao navegador.
+
 Este é o mesmo mecanismo usado por `start_system.bat`, `start_system.sh` e
 `scripts/win_run_web.bat`.
 

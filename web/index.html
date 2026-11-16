@@ -332,8 +332,9 @@
             <h3 class="admin-card-title">Open Router</h3>
             <div class="provider-field">
               <label for="openrouter-key-input" class="form-label">API Key</label>
-              <input type="password" id="openrouter-key-input" class="form-input"
-                placeholder="sk-or-..." autocomplete="off" />
+              <input type="password" id="openrouter-key-input" name="openrouter-api-key" class="form-input"
+                placeholder="sk-or-..." autocomplete="new-password" spellcheck="false"
+                data-form-type="other" data-lpignore="true" data-1p-ignore="true" />
               <p id="openrouter-key-hint" class="provider-hint">A chave é gravada apenas no servidor e nunca é devolvida ao navegador.</p>
             </div>
             <div class="provider-field">
@@ -359,8 +360,9 @@
             </div>
             <div class="provider-field">
               <label for="gateway-key-input" class="form-label">API Key <span class="provider-optional">(opcional)</span></label>
-              <input type="password" id="gateway-key-input" class="form-input"
-                placeholder="Bearer token, se o gateway exigir" autocomplete="off" />
+              <input type="password" id="gateway-key-input" name="gateway-api-key" class="form-input"
+                placeholder="Bearer token, se o gateway exigir" autocomplete="new-password" spellcheck="false"
+                data-form-type="other" data-lpignore="true" data-1p-ignore="true" />
               <p id="gateway-key-hint" class="provider-hint">Enviada como <code>Authorization: Bearer</code>. Deixe em branco se o gateway for aberto.</p>
             </div>
           </div>
