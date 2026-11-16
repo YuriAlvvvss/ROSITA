@@ -21,6 +21,9 @@ class RositaApp {
     this.chatContainer = document.getElementById("chat-container");
     this.chatEmptyState = document.getElementById("chat-empty-state");
     this.chatSection = document.getElementById("chat-section");
+    this.historyContainer = document.getElementById("history-container");
+    this.historyStatus = document.getElementById("history-status");
+    this.reloadHistoryBtn = document.getElementById("reload-history-btn");
     this.modelSelectorWrap = document.querySelector(".model-selector");
     this.userInput = document.getElementById("user-input");
     this.sendBtn = document.getElementById("send-btn");
@@ -135,6 +138,7 @@ class RositaApp {
     this.themeToggle?.addEventListener("click", () => this.toggleTheme());
     this.sendBtn?.addEventListener("click", () => this.enviarMensagem());
     this.clearBtn?.addEventListener("click", () => this.limparChat());
+    this.reloadHistoryBtn?.addEventListener("click", () => this.carregarHistorico());
     this.exportDataBtn?.addEventListener("click", () => this.exportarDados());
     this.deleteDataBtn?.addEventListener("click", () => this.excluirDados());
     this.reloadModelsBtn?.addEventListener("click", () => this.carregarModelos());
@@ -445,6 +449,9 @@ class RositaApp {
     if (this.clearBtn) {
       this.clearBtn.disabled = this.isAwaitingResponse;
     }
+    if (this.reloadHistoryBtn) {
+      this.reloadHistoryBtn.disabled = this.isAwaitingResponse;
+    }
 
     if (this.configFileSelect) {
       this.configFileSelect.disabled = configDisabled || !this.configFilesLoaded;
@@ -476,6 +483,10 @@ class RositaApp {
       const active = section.id === `${sectionName}-section`;
       section.classList.toggle("section--active", active);
     });
+
+    if (sectionName === "history") {
+      this.carregarHistorico();
+    }
   }
 
   switchAdminTab(tabName) {
@@ -677,6 +688,83 @@ class RositaApp {
     this.updateChatEmptyState();
     this.chatContainer.scrollTop = this.chatContainer.scrollHeight;
     return content;
+  }
+
+  setHistoryStatus(message, isError = false) {
+    if (!this.historyStatus) return;
+    this.historyStatus.textContent = message || "";
+    this.historyStatus.classList.toggle("is-error", Boolean(isError));
+  }
+
+  limparHistoricoVisual() {
+    if (this.historyContainer) {
+      this.historyContainer.replaceChildren();
+    }
+  }
+
+  renderizarHistorico(registros) {
+    this.limparHistoricoVisual();
+    if (!this.historyContainer) return;
+
+    if (!registros.length) {
+      this.historyContainer.textContent = "Nenhuma mensagem foi salva nesta sessão.";
+      this.historyContainer.classList.add("history-container--empty");
+      return;
+    }
+
+    this.historyContainer.classList.remove("history-container--empty");
+    registros.forEach((registro) => {
+      const tipo = registro.role === "user" ? "user" : "assistant";
+      const wrap = document.createElement("div");
+      wrap.className = `message ${tipo}`;
+
+      const body = document.createElement("div");
+      body.className = "message-body";
+
+      const content = document.createElement("div");
+      content.className = "message-content";
+      content.textContent = typeof registro.content === "string" ? registro.content : "";
+
+      const meta = document.createElement("div");
+      meta.className = "message-meta";
+      meta.textContent = tipo === "user" ? "Você" : "ROSITA";
+
+      body.append(content, meta);
+      wrap.appendChild(body);
+      this.historyContainer.appendChild(wrap);
+    });
+  }
+
+  async carregarHistorico() {
+    if (!this.historyContainer || this.isAwaitingResponse) return;
+    this.setHistoryStatus("Carregando histórico...");
+    this.reloadHistoryBtn?.setAttribute("aria-busy", "true");
+    try {
+      if (this.privacyState.consentRequired && !this.privacyState.accepted) {
+        this.limparHistoricoVisual();
+        this.historyContainer.textContent = "Aceite o aviso de privacidade para consultar o histórico.";
+        this.historyContainer.classList.add("history-container--empty");
+        this.setHistoryStatus("");
+        return;
+      }
+      if (!this.privacyState.historyEnabled) {
+        this.limparHistoricoVisual();
+        this.historyContainer.textContent = "O salvamento de histórico está desabilitado nesta sessão.";
+        this.historyContainer.classList.add("history-container--empty");
+        this.setHistoryStatus("");
+        return;
+      }
+
+      const payload = await window.rositaApi.obterHistorico();
+      const registros = Array.isArray(payload?.historico) ? payload.historico : [];
+      this.renderizarHistorico(registros);
+      this.setHistoryStatus("");
+    } catch (err) {
+      this.limparHistoricoVisual();
+      this.setHistoryStatus(`Erro ao carregar histórico: ${err.message || String(err)}`, true);
+    } finally {
+      this.reloadHistoryBtn?.removeAttribute("aria-busy");
+    }
   }
 
   tokenizeChunk(chunk) {
@@ -1086,6 +1174,9 @@ class RositaApp {
       await window.rositaApi.limparHistorico();
       this.chatContainer.innerHTML = "";
       this.updateChatEmptyState();
+      if (this.historySectionIsActive()) {
+        await this.carregarHistorico();
+      }
     } catch (err) {
       this.adicionarMensagem(`Erro ao limpar histórico: ${err.message || String(err)}`, "assistant");
     }
@@ -1115,12 +1206,24 @@ class RositaApp {
       if (this.chatContainer) this.chatContainer.innerHTML = "";
       this.updateChatEmptyState();
       this.privacyState.accepted = false;
+      this.limparHistoricoVisual();
+      if (this.historySectionIsActive()) {
+        this.setHistoryStatus("");
+        this.historyContainer.textContent = "Aceite o aviso de privacidade para consultar o histórico.";
+        this.historyContainer.classList.add("history-container--empty");
+      }
       if (this.privacyState.consentRequired) {
         this.privacyModal?.classList.remove("hidden");
       }
     } catch (err) {
       this.adicionarMensagem(`Erro ao excluir dados: ${err.message || String(err)}`, "assistant");
     }
+  }
+
+  historySectionIsActive() {
+    return this.sections.some(
+      (section) => section.id === "history-section" && section.classList.contains("section--active")
+    );
   }
 }
 

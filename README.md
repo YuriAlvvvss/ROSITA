@@ -262,10 +262,11 @@ positivo remove mensagens mais antigas que o prazo durante a inicialização do
 backend. A limpeza não remove cópias que possam existir em backups externos ou
 nos provedores de IA.
 
-Na interface, os comandos **Baixar meus dados** e **Excluir meus dados** tratam
-os dados associados à sessão atual. A exportação produz JSON com mensagens e
-registro de consentimento. A exclusão remove mensagens e consentimento do
-SQLite; ela não apaga dados já enviados a terceiros.
+Na interface, o item **Histórico** consulta as mensagens da sessão atual e as
+exibe em ordem cronológica. Os comandos **Baixar meus dados** e **Excluir meus
+dados** também tratam os dados associados à sessão atual. A exportação produz
+JSON com mensagens e registro de consentimento. A exclusão remove mensagens e
+consentimento do SQLite; ela não apaga dados já enviados a terceiros.
 
 O aviso técnico não substitui a definição jurídica do controlador, da base
 legal, dos prazos, do encarregado ou dos procedimentos para titulares. Esses

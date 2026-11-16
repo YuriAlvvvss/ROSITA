@@ -58,7 +58,7 @@
           </svg>
           <span class="nav-label">Conversas</span>
         </button>
-        <button class="nav-item nav-item--ghost" title="Histórico (em breve)" disabled aria-disabled="true">
+        <button class="nav-item" data-section="history" title="Histórico">
           <svg class="nav-icon" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
             <path d="M13 3a9 9 0 1 0 8.95 10h-2.02A7 7 0 1 1 13 5v4l5-5-5-5v4z"/>
           </svg>
@@ -214,6 +214,22 @@
             </div>
           </div>
         </div>
+      </section>
+
+      <!-- HISTORY SECTION -->
+      <section id="history-section" class="section">
+        <div class="section-header">
+          <div>
+            <h2>Histórico</h2>
+            <p class="section-subtitle">Mensagens salvas nesta sessão</p>
+          </div>
+          <button id="reload-history-btn" class="btn-secondary" type="button">
+            Atualizar
+          </button>
+        </div>
+
+        <div id="history-status" class="history-status" role="status" aria-live="polite"></div>
+        <div id="history-container" class="history-container" role="log" aria-live="polite"></div>
       </section>
 
       <!-- ADMIN SECTION -->
