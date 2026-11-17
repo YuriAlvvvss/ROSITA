@@ -41,8 +41,9 @@ só `.txt` é editável pela UI).
 - **Autenticação** com senhas em hash (`werkzeug`), `secret_key` por ambiente e
   rate limiting em login/chat (além do limite global de 240/hora).
 - **Histórico por usuário** persistido em SQLite (sobrevive a reinícios). O
-  histórico é automático por usuário/sessão; o botão "Histórico" da sidebar
-  está desabilitado ("em breve") — ainda não há UI de múltiplas conversas.
+  histórico é automático por usuário/sessão. O botão "Histórico" da sidebar
+  consulta e exibe as mensagens da sessão atual; ainda não há UI de múltiplas
+  conversas independentes.
 - **Chat em streaming** (SSE) com scroll simples para o fim (`scrollTop =
   scrollHeight`), contador de caracteres `0/1000` e mensagens em texto puro
   (`textContent`, sem render Markdown). A entrada é `<input type="text">`
@@ -279,7 +280,7 @@ Variáveis adicionais disponíveis no `.env` (veja `.env.example`):
 | Variável | Padrão | Descrição |
 |----------|--------|-----------|
 | `ROSITA_WEB_PORT` | `18080` | Porta pública da interface web (com `.env`). Sem `.env`, o Compose publica `${ROSITA_WEB_PORT:-18888}:80` no serviço `web`. Atenção: o serviço `backend` usa `${ROSITA_WEB_PORT:-37642}` só para montar o CORS (`docker-compose.yml:33,72`) |
-| `ROSITA_API_PORT` | `18500` | Porta pública da API (no container o backend escuta em `5000`; o Compose publica `18500:5000`). No dev local (`scripts/win_run_backend.bat`), default `18500` |
+| `ROSITA_API_PORT` | `18500` | Porta do backend no desenvolvimento local (`scripts/win_run_backend.bat`). No Docker Compose, o backend escuta internamente em `5000` e a API é acessada pelo Nginx em `/api`; essa porta não é publicada diretamente no host |
 | `ROSITA_BACKEND_URL` | `http://127.0.0.1:18500` | Só para dev local: URL do backend usada por `web/scripts/dev_server.py` (não está no `.env.example`; no Docker o Nginx usa `backend:5000` fixo) |
 | `ROSITA_API_HOST` | `0.0.0.0` | Host do Flask/Gunicorn (`settings.py`, `win_run_backend.bat`, Compose força `0.0.0.0:5000` no container) |
 | `ROSITA_WEB_HOST` | `127.0.0.1` | Host do `dev_server.py` local (só dev; `scripts/win_run_web.bat`) |
@@ -448,13 +449,14 @@ Em MiniOS ou live USB, o driver **overlay** do Docker pode falhar ao **criar** c
 
 Serviços padrão (com `.env` preenchido):
 - Web: `http://SEU_SERVIDOR:18080`
-- API: `http://SEU_SERVIDOR:18500`
+- API: acessível pelo proxy da web em `http://SEU_SERVIDOR:18080/api`
 
 Sem `.env`, o Compose publica a web em `18888:80` (fallback do serviço `web`);
-o `37642` que aparece em `docker-compose.yml:33` é só o default usado para
-montar o CORS do backend, não a porta pública. O healthcheck do Compose usa
-`GET /api/status` (`docker-compose.yml:55`); o `GET /api/health` verifica o
-provedor de IA (200 ok / 503 degradado).
+o `ROSITA_WEB_PORT` usado no bloco `environment` do backend é apenas o default
+usado para montar o CORS, não uma porta pública adicional. O backend escuta em
+`5000` dentro da rede Docker e não possui publicação direta de porta. O
+healthcheck do Compose usa `GET /api/status` (`docker-compose.yml:63`); o
+`GET /api/health` verifica o provedor de IA (200 ok / 503 degradado).
 
 Na primeira abertura, se ainda não houver modelo ativo, a própria interface web permite selecionar um modelo disponível no provedor configurado.
 Nenhum modelo é baixado, ativado ou trocado automaticamente sem ação do usuário.
