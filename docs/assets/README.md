@@ -6,11 +6,9 @@ Este diretório contém os materiais visuais exibidos no README principal:
 - `imagem2rosita.png`: tema claro com sidebar expandida.
 - `imagem3rosita.png`: tema claro com sidebar compacta.
 
-## Wireframes e prints da interface administrativa
+## Wireframes da interface
 
-Os seguintes arquivos em PNG priorizam o tema escuro:
-
-- `wireframelogin.png`: wireframe do acesso administrativo.
-- `wireframechattemaescuro.png`: wireframe da interface de conversa.
-- `paineladministrativo.png`: painel administrativo da ROSITA.
-- `statusadministrativo.png`: status administrativo da ROSITA.
+- `WireFrame-AcessoADM.jpg`: wireframe do acesso administrativo.
+- `WireFrame-Chat.jpg`: wireframe do chat.
+- `WireFrame-PainelAdministrativo.jpg`: wireframe do painel administrativo.
+- `WireFrame-StatusSistema.jpg`: wireframe do status do sistema.

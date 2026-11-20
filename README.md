@@ -16,15 +16,15 @@ Ela permite consultas ao Regimento Escolar ECIM por meio de uma interface web re
 |---|---|---|
 | ![Tema escuro da ROSITA](docs/assets/imagem1rosita.png) | ![Tema claro da ROSITA](docs/assets/imagem2rosita.png) | ![Sidebar compacta da ROSITA](docs/assets/imagem3rosita.png) |
 
-### Wireframes e administração
+### Wireframes da interface
 
-| Login administrativo | Chat em tema escuro |
+| Acesso administrativo | Chat |
 |---|---|
-| ![Wireframe do login administrativo](docs/assets/wireframelogin.png) | ![Wireframe do chat em tema escuro](docs/assets/wireframechattemaescuro.png) |
+| ![Wireframe do acesso administrativo](docs/assets/WireFrame-AcessoADM.jpg) | ![Wireframe do chat](docs/assets/WireFrame-Chat.jpg) |
 
-| Painel administrativo | Status administrativo |
+| Painel administrativo | Status do sistema |
 |---|---|
-| ![Painel administrativo da ROSITA](docs/assets/paineladministrativo.png) | ![Status administrativo da ROSITA](docs/assets/statusadministrativo.png) |
+| ![Wireframe do painel administrativo](docs/assets/WireFrame-PainelAdministrativo.jpg) | ![Wireframe do status do sistema](docs/assets/WireFrame-StatusSistema.jpg) |
 
 ## Sobre o Projeto
 
