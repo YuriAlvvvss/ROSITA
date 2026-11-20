@@ -16,6 +16,16 @@ Ela permite consultas ao Regimento Escolar ECIM por meio de uma interface web re
 |---|---|---|
 | ![Tema escuro da ROSITA](docs/assets/imagem1rosita.png) | ![Tema claro da ROSITA](docs/assets/imagem2rosita.png) | ![Sidebar compacta da ROSITA](docs/assets/imagem3rosita.png) |
 
+### Wireframes e administração
+
+| Login administrativo | Chat em tema escuro |
+|---|---|
+| ![Wireframe do login administrativo](docs/assets/wireframelogin.png) | ![Wireframe do chat em tema escuro](docs/assets/wireframechattemaescuro.png) |
+
+| Painel administrativo | Status administrativo |
+|---|---|
+| ![Painel administrativo da ROSITA](docs/assets/paineladministrativo.png) | ![Status administrativo da ROSITA](docs/assets/statusadministrativo.png) |
+
 ## Sobre o Projeto
 
 A consulta a documentos escolares extensos pode ser lenta e pouco acessível para alunos, familiares e profissionais da instituição. A ROSITA organiza esse conhecimento em uma interface de conversa, consulta o Regimento Escolar ECIM como contexto e oferece respostas com streaming em tempo real.
