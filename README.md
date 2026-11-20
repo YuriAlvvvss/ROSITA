@@ -1,364 +1,151 @@
-# ROSITA - Assistente Escolar
+# ROSITA — Assistente Virtual Escolar com IA
 
-Projeto Python com backend Flask e frontend web, com suporte a provedores de IA:
-- OpenRouter (API, nuvem) — provedor padrão
-- Gateway local (servidor OpenAI-compatible na sua rede)
+[![Python](https://img.shields.io/badge/Python-3.8%2B-3776AB?logo=python&logoColor=white)](https://www.python.org/)
+[![Flask](https://img.shields.io/badge/Flask-API-000000?logo=flask&logoColor=white)](https://flask.palletsprojects.com/)
+[![Frontend](https://img.shields.io/badge/Frontend-Vanilla_JS-F7DF1E?logo=javascript&logoColor=black)](https://developer.mozilla.org/docs/Web/JavaScript)
+[![SQLite](https://img.shields.io/badge/SQLite-Histórico-003B57?logo=sqlite&logoColor=white)](https://sqlite.org/)
+[![Docker](https://img.shields.io/badge/Docker-Nginx-2496ED?logo=docker&logoColor=white)](https://www.docker.com/)
+[![Pytest](https://img.shields.io/badge/Testes-Pytest-0A9EDC?logo=pytest&logoColor=white)](https://pytest.org/)
 
-A ROSITA é um assistente da PEI Rosa Bonfiglioli que responde dúvidas sobre o
-regimento e os procedimentos da escola, baseando-se na documentação oficial
-carregada em memória (`backend/data/*.txt` e `*.md`, ex.: `regimento_ECIM.txt`;
-só `.txt` é editável pela UI).
+A ROSITA é uma assistente virtual escolar desenvolvida para a PEI Rosa Bonfiglioli.
+Ela permite consultas ao Regimento Escolar ECIM por meio de uma interface web responsiva, com respostas geradas por provedores de IA configuráveis e conteúdo institucional definido pela escola.
+
+## Demonstração Visual
+
+| Tema escuro — visão principal | Tema claro — visão principal | Tema claro — sidebar compacta |
+|---|---|---|
+| ![Tema escuro da ROSITA](docs/assets/imagem1rosita.png) | ![Tema claro da ROSITA](docs/assets/imagem2rosita.png) | ![Sidebar compacta da ROSITA](docs/assets/imagem3rosita.png) |
+
+## Sobre o Projeto
+
+A consulta a documentos escolares extensos pode ser lenta e pouco acessível para alunos, familiares e profissionais da instituição. A ROSITA organiza esse conhecimento em uma interface de conversa, consulta o Regimento Escolar ECIM como contexto e oferece respostas com streaming em tempo real.
+
+Como proposta de valor, o projeto reúne acessibilidade, consulta institucional, administração operacional e controles de privacidade em uma única aplicação acadêmica pronta para implantação local ou em contêineres.
+
+## Principais Funcionalidades
+
+### Atendimento e Experiência de Uso
+
+- Chat com respostas em streaming via Server-Sent Events (SSE).
+- Validação do tamanho e do conteúdo das mensagens.
+- Visualização do PDF oficial do Regimento Escolar ECIM na interface.
+- Acesso anônimo ao chat, sem necessidade de cadastro.
+- Histórico da sessão e temas claro/escuro.
+
+### Inteligência Artificial e Administração
+
+- Provedores OpenRouter e Gateway local OpenAI-compatible, selecionáveis em runtime.
+- Seleção de modelo disponível para o provedor ativo.
+- Edição dos arquivos de referência `.txt` pela área administrativa, com backup `.bak`.
+- Painel de Status do Sistema e endpoint `/api/health`.
+
+### Segurança e Privacidade (LGPD)
+
+- Senhas administrativas em hash `scrypt`, com comparação segura e mitigação de timing attack.
+- Autenticação de sessão com limite de taxa em login e chat, além do limite global.
+- Aviso de privacidade versionado e consentimento explícito.
+- Retenção configurável e escolha de persistência do histórico.
+- Exportação dos dados da sessão em JSON e exclusão do histórico e do consentimento.
 
 ## Arquitetura
 
-```txt
-┌──────────────────────────────┐
-│  Frontend (web/) — Nginx     │
-│  HTML + CSS + JS (vanilla)   │
-│  • Login / sessão            │
-│  • Chat com streaming (SSE)  │
-│  • Tema claro/escuro         │
-│  • Painel admin / status     │
-└──────────────┬───────────────┘
-               │  REST + SSE  (/api/*, cookie de sessão)
-┌──────────────▼───────────────┐
-│  Backend (Flask + Gunicorn)  │
-│  • Rotas/auth (hash + rate-limit)
-│  • RositaAgent (orquestração)│
-│  • HistoryStore (SQLite, por usuário)
-└──────────────┬───────────────┘
-               │
-   ┌───────────┼───────────┐
-   ▼           ▼
-┌──────────┐ ┌──────────┐
-│OpenRouter│ │ Gateway  │
-│ (nuvem)  │ │ (custom) │
-└──────────┘ └──────────┘
+```mermaid
+flowchart LR
+    U[Usuário] --> W[Nginx / Frontend Vanilla JS]
+    W -->|REST + SSE| F[Flask / Gunicorn]
+    F --> A[Auth]
+    F --> R[RositaAgent]
+    F --> M[SystemMonitor]
+    R -->|resposta| F
+    A --> DB[(SQLite)]
+    R --> D[backend/data]
+    R -->|OpenRouter| OR[OpenRouter]
+    R -->|Gateway| GW[Gateway OpenAI-compatible]
 ```
 
-## Principais recursos
+### Stack Tecnológica
 
-- **Autenticação** com senhas em hash (`werkzeug`), `secret_key` por ambiente e
-  rate limiting em login/chat (além do limite global de 240/hora).
-- **Histórico por usuário** persistido em SQLite (sobrevive a reinícios). O
-  histórico é automático por usuário/sessão. O botão "Histórico" da sidebar
-  consulta e exibe as mensagens da sessão atual; ainda não há UI de múltiplas
-  conversas independentes.
-- **Chat em streaming** (SSE) com scroll simples para o fim (`scrollTop =
-  scrollHeight`), contador de caracteres `0/1000` e mensagens em texto puro
-  (`textContent`, sem render Markdown). A entrada é `<input type="text">`
-  single-line (`Enter` envia; sem `Shift+Enter`/multilinha, sem botão de parar,
-  sem botão de copiar e sem indicador de "digitando"). Os arquivos
-  `web/scripts/vendor/marked.min.js` e `purify.min.js` existem no repositório
-  mas **não são carregados** por `web/index.html` (só `config.js`,
-  `api_client.js` e `main.js`).
-- **Botão "Regimento"** na sidebar, que abre o PDF servido por
-  `GET /api/regimento/pdf` (arquivo em `backend/data/`).
-- **Painel admin** com abas Modelo Ativo, Referências (edição de `.txt` com
-  backup `.bak` e toasts de feedback) e Provedor de IA, além de **Status do
-  Sistema** (servidor, modelo ativo, CPU, memória, disco, GPU/VRAM).
-- **Tema claro/escuro**: a abertura da interface **sempre inicia no tema escuro**
-  (não usa `prefers-color-scheme` nem restaura o tema claro salvo). O botão na
-  sidebar ainda permite alternar durante a sessão. Tokens CSS em
-  `web/styles/main.css`: o escuro fica em `:root`; o claro em
-  `html[data-theme="light"]` (degradê suave e glassmorphism). O layout do
-  compositor (largura alinhada à área de mensagens) é o mesmo nos dois temas.
-- **Múltiplos provedores de IA** alternáveis em runtime pela interface admin.
-- **Healthcheck** (`/api/health`) que verifica o provedor de IA.
-- **Controles de privacidade** com aviso versionado, escolha de armazenamento,
-  exportação e exclusão dos dados da sessão.
+| Camada | Tecnologia | Finalidade |
+|---|---|---|
+| Interface | HTML5, CSS3 e JavaScript Vanilla | Aplicação web responsiva sem bundler |
+| Servidor web | Nginx | Arquivos estáticos e proxy de `/api` |
+| Backend | Python, Flask e Gunicorn | API REST, SSE e regra de aplicação |
+| Persistência | SQLite | Histórico por sessão/usuário e consentimentos |
+| Inteligência artificial | OpenRouter ou Gateway OpenAI-compatible | Geração de respostas e seleção de modelos |
+| Contêineres | Docker Compose | Integração entre web e backend |
+| Qualidade | Pytest | Testes automatizados do backend e da integração web |
 
-## Estrutura padronizada
+## Estrutura do Repositório
 
-```txt
+```text
 ROSITA/
-├── .env.example
-├── agent_cli.py
-├── pytest.ini
+├── README.md
 ├── backend/
-│   ├── app.py             # entrypoint Flask real (usa app_factory; lê .env, env.admin, env.defaults, backend/.env, .venv/admin_password.env)
-│   ├── Dockerfile           # CMD gunicorn app:app direto (compose-entrypoint.sh existe mas NÃO é usado pelo Compose)
-│   ├── compose-entrypoint.sh # legado/não referenciado no docker-compose.yml
-│   ├── env.admin          # versionado (admin + hash)
-│   ├── env.defaults       # versionado (padrões; contém IP interno, ver nota de provedores)
-│   ├── .env               # escrito pelo painel admin (PUT /api/credenciais); ignorado pelo .gitignore
-│   ├── requirements.txt   # flask, flask-cors, flask-limiter, gunicorn, python-dotenv, psutil, requests
-│   ├── api/ core/ utils/  # stubs com só __init__.py; código real está em src/rosita/
+│   ├── app.py
 │   ├── data/
-│   │   ├── agent_instructions.txt (+ .bak gerado ao editar pela UI)
-│   │   ├── regimento_ECIM.txt
-│   │   └── regimento_ECIM.pdf   # servido por GET /api/regimento/pdf (match case-insensitive)
-│   └── src/rosita/
-│       ├── core/          # agent.py, ai_client.py (OpenRouter, Gateway), prompt_builder.py
-│       ├── api/           # routes.py (REST + SSE) + routes/credentials.py (vazio, legado)
-│       ├── utils/         # env_manager, file_loader, history_store, system_monitor, validators
-│       ├── app_factory.py   # factory real usada por backend/app.py
-│       ├── main.py          # factory legada NÃO usada (instancia Settings() sem args, blueprint vazio)
-│       ├── bootstrap.py
-│       └── settings.py
-├── docker-compose.yml
-├── docker/
-│   └── minios-vfs-daemon.json
+│   ├── src/rosita/
+│   ├── Dockerfile
+│   └── requirements.txt
+├── web/
+│   ├── index.html
+│   ├── styles/
+│   ├── scripts/
+│   ├── nginx.conf
+│   └── Dockerfile
 ├── docs/
 │   ├── README.md
-│   ├── architecture.md
-│   ├── ARQUITETURA.md
-│   ├── implementation_plan.md
-│   ├── linux_startup.md
+│   ├── arquitetura-backend.md
+│   ├── arquitetura-frontend.md
 │   └── PLANO_MELHORIAS.md
-├── frontend/              # rascunhos/guias legados (FRONTEND_ROSITA.md etc.); o frontend oficial é web/
-├── requirements-dev.txt
-├── scripts/
-│   ├── enable-docker-vfs-minios.sh   # lê docker/minios-vfs-daemon.json
-│   ├── set_admin_password.py         # gera hash em .venv/admin_password.env
-│   ├── win_run_backend.bat
-│   └── win_run_web.bat
+├── tests/
+├── docker-compose.yml
 ├── start_system.bat
-├── start_system.sh
-├── tests/                 # HistoryStore, auth/API, validadores, seleção de modelo/provedor, proxy web, deploy
-├── web/
-│   ├── Dockerfile
-│   ├── index.html
-│   ├── nginx.conf           # em Docker faz proxy de /api/* para backend:5000 (SSE com timeout longo)
-│   ├── README.md
-│   ├── scripts/           # main.js (textContent, input single-line, keypress Enter), api_client.js (fetch/SSE), config.js, dev_server.py, vendor/ (marked, DOMPurify presentes mas NÃO carregados no index.html)
-│   └── styles/            # main.css (temas claro/escuro)
-└── README.md
+└── start_system.sh
 ```
 
-## Convenções adotadas
+## Como Executar
 
-- nomes de pastas em minúsculo;
-- nomes Python em `snake_case`;
-- separação por camadas (core, api, utils, settings);
-- instruções do agente fora do código.
+### Opção 1 — Docker Compose (Recomendado / Produção)
 
-## Instruções do agente (editável)
-
-Arquivo: `backend/data/agent_instructions.txt`
-
-Placeholders suportados: `{DOCUMENTACAO}` (atual — usado pelo arquivo em
-`backend/data/`) e `{REGIMENTO}` (legado). Ambos são substituídos em
-`backend/src/rosita/core/prompt_builder.py`.
-
-## Configuração de provedores de IA
-
-O backend suporta dois provedores (configurados no `.env`):
-
-| Provedor | Variável principal | Uso |
-|----------|-------------------|-----|
-| **OpenRouter** | `ROSITA_OPENROUTER_API_KEY`, `ROSITA_OPENROUTER_MODEL` | Modelos na nuvem (https://openrouter.ai) — padrão |
-| **Gateway** | `ROSITA_GATEWAY_URL`, `ROSITA_GATEWAY_MODEL`, `ROSITA_GATEWAY_API_KEY` | Servidor OpenAI-compatible no seu servidor (vLLM, LocalAI, LM Studio, etc.) |
-
-Provedor ativo por padrão:
-
-```env
-ROSITA_AI_PROVIDER=openrouter
-```
-
-Valores aceitos: `openrouter` ou `gateway`.
-
-Se mais de um provedor estiver configurado (ex.: OpenRouter + gateway local), o administrador pode alternar entre eles na interface ou via API (`GET /api/provedores`, `POST /api/provedores/trocar`).
-
-Exemplo OpenRouter:
-
-```env
-ROSITA_AI_PROVIDER=openrouter
-ROSITA_OPENROUTER_API_KEY=sk-or-v1-xxxxx
-ROSITA_OPENROUTER_MODEL=openai/gpt-4o-mini
-```
-
-Exemplo Gateway (IA local no servidor):
-
-```env
-ROSITA_AI_PROVIDER=gateway
-ROSITA_GATEWAY_URL=http://127.0.0.1:8000
-ROSITA_GATEWAY_MODEL=seu-modelo
-# ROSITA_GATEWAY_API_KEY=chave-opcional-do-gateway
-```
-
-O gateway deve expor `GET /v1/models` e `POST /v1/chat/completions` (URL base **sem** `/v1` no final).
-
-> Nota: `backend/env.defaults` (versionado) traz `ROSITA_GATEWAY_URL=http://100.75.86.69:3001`
-> e `ROSITA_GATEWAY_MODEL=deepseek-chat` — é um IP interno fixo, não um exemplo
-> genérico. Se você não usa esse gateway, sobrescreva no `.env` da raiz
-> (ou limpe via painel admin) para não exibir um provedor indisponível na UI.
-
-Copie `.env.example` para `.env` e preencha as variáveis do provedor desejado.
-
-## Segurança e autenticação
-
-As credenciais e a chave de sessão vêm do `.env` (veja `.env.example`):
-
-```env
-# Gere a chave: python -c "import secrets; print(secrets.token_hex(32))"
-ROSITA_SECRET_KEY=
-
-# Nome de usuário dos perfis de acesso.
-ROSITA_ADMIN_USERNAME=ADM
-ROSITA_USER_USERNAME=usuario
-
-# Gere o hash: python -c "from werkzeug.security import generate_password_hash as g; print(g('SUA_SENHA'))"
-ROSITA_ADMIN_PASSWORD_HASH=
-ROSITA_USER_PASSWORD_HASH=
-```
-
-- As senhas são verificadas por **hash** (`scrypt`/`werkzeug`). Quando o usuário
-  não existe, um hash descartável é comparado para equalizar o tempo de
-  resposta (proteção contra enumeração por timing attack).
-- O **login é restrito ao perfil admin** (comparação case-insensitive); o perfil
-  de usuário comum usa o chat sem login (visita anônima com histórico isolado
-  por sessão).
-- **Ordem de precedência da config** (o último vence). No Docker Compose
-  (`docker-compose.yml`): `backend/env.defaults` < `backend/env.admin`
-  (ambos versionados) < `.env` da raiz < `backend/.env` (escrito pelo painel
-  admin) < variáveis já exportadas no ambiente. No dev local
-  (`backend/app.py:23-33`): `.env` da raiz, `env.admin`, `env.defaults`,
-  depois `backend/.env` com `override=True`, e por último
-  `.venv/admin_password.env` com `override=True` (precedência máxima local).
-  O painel admin (`PUT /api/credenciais`, `POST` também aceito) persiste em
-  `backend/.env`, não no `.env` da raiz. Atenção: o padrão global `.env` do
-  `.gitignore` ignora tanto o `.env` da raiz quanto `backend/.env`; ainda
-  assim, não compartilhe nem commite chaves nesses arquivos.
-- Atenção ao Docker Compose: **hashes scrypt contêm `$`**. Use **sempre aspas
-  simples** no `.env`/`backend/.env` (ex.: `ROSITA_ADMIN_PASSWORD_HASH='scrypt:...'`),
-  senão o Compose expande `$...` e corrompe o hash (veja o aviso no topo do
-  `.env.example`).
-- O repositório já traz `backend/env.admin` versionado (`admin` + hash). Para
-  trocar a senha, gere um hash e defina no `.env` da raiz (ou em
-  `backend/.env` pelo painel).
-- Se `ROSITA_SECRET_KEY` ficar vazia, uma chave aleatória é gerada a cada início
-  (as sessões não persistem entre reinícios) — defina-a em produção.
-- Se os `_HASH` ficarem vazios, aceita-se a senha em texto via
-  `ROSITA_ADMIN_PASSWORD` / `ROSITA_USER_PASSWORD`; na ausência de ambos, um hash
-  temporário é gerado e o login administrativo fica indisponível por padrão —
-  **não** use isso em produção.
-- Para desenvolvimento local, você também pode definir credenciais em
-  `.venv/admin_password.env` (gerado por `scripts/set_admin_password.py`, só
-  grava o hash, sem username), que é carregado por `backend/app.py` com
-  `override=True` — ou seja, vence `.env` da raiz e `backend/.env` no dev local.
-- `POST /api/auth/login` (10/min) e `POST /api/chat` (20/min) têm limite de taxa, além do limite global de 240/hora. Vale quando `flask-limiter` está instalado (está em `backend/requirements.txt`); sem ele, `app_factory.py` usa `_NoopLimiter` e a limitação fica desativada com aviso no log.
-
-## Histórico por usuário
-
-O histórico de conversa é persistido em **SQLite**, isolado por usuário (ou por
-visitante anônimo, via ID de sessão), e sobrevive a reinícios do servidor. O
-caminho do banco é configurável:
-
-```env
-ROSITA_HISTORY_DB=backend/rosita_history.sqlite3
-```
-
-No Docker Compose o backend usa `ROSITA_HISTORY_DB=/data/rosita_history.sqlite3`
-com volume nomeado `rosita_history` (persistente entre `up`/`down`).
-
-O armazenamento pode ser controlado pelo usuário no aviso de privacidade. A
-opção desmarcada envia a conversa ao provedor de IA, mas não a grava no SQLite.
-O modo padrão permanece compatível com o comportamento anterior e pode ser
-ajustado por `ROSITA_HISTORY_MODE`.
-
-O prazo automático de retenção é configurado por
-`ROSITA_HISTORY_RETENTION_DAYS`. O valor `0` mantém a retenção atual; um valor
-positivo remove mensagens mais antigas que o prazo durante a inicialização do
-backend. A limpeza não remove cópias que possam existir em backups externos ou
-nos provedores de IA.
-
-Na interface, o item **Histórico** consulta as mensagens da sessão atual e as
-exibe em ordem cronológica. Os comandos **Baixar meus dados** e **Excluir meus
-dados** também tratam os dados associados à sessão atual. A exportação produz
-JSON com mensagens e registro de consentimento. A exclusão remove mensagens e
-consentimento do SQLite; ela não apaga dados já enviados a terceiros.
-
-O aviso técnico não substitui a definição jurídica do controlador, da base
-legal, dos prazos, do encarregado ou dos procedimentos para titulares. Esses
-itens devem ser configurados pela instituição antes do uso com dados reais.
-
-## Ajustes opcionais
-
-Variáveis adicionais disponíveis no `.env` (veja `.env.example`):
-
-| Variável | Padrão | Descrição |
-|----------|--------|-----------|
-| `ROSITA_WEB_PORT` | `18080` | Porta pública da interface web (com `.env`). Sem `.env`, o Compose publica `${ROSITA_WEB_PORT:-18888}:80` no serviço `web`. Atenção: o serviço `backend` usa `${ROSITA_WEB_PORT:-37642}` só para montar o CORS (`docker-compose.yml:33,72`) |
-| `ROSITA_API_PORT` | `18500` | Porta do backend no desenvolvimento local (`scripts/win_run_backend.bat`). No Docker Compose, o backend escuta internamente em `5000` e a API é acessada pelo Nginx em `/api`; essa porta não é publicada diretamente no host |
-| `ROSITA_BACKEND_URL` | `http://127.0.0.1:18500` | Só para dev local: URL do backend usada por `web/scripts/dev_server.py` (não está no `.env.example`; no Docker o Nginx usa `backend:5000` fixo) |
-| `ROSITA_API_HOST` | `0.0.0.0` | Host do Flask/Gunicorn (`settings.py`, `win_run_backend.bat`, Compose força `0.0.0.0:5000` no container) |
-| `ROSITA_WEB_HOST` | `127.0.0.1` | Host do `dev_server.py` local (só dev; `scripts/win_run_web.bat`) |
-| `ROSITA_DATA_DIR` | `backend/data` | Pasta de dados ativa (editável pela UI). No Compose, edições são **efêmeras** (só `rosita_history` tem volume) |
-| `ROSITA_BUNDLED_DATA_DIR` | `backend/src/rosita/default_data` (inexistente no checkout) | Fallback de seed; no Compose sobrescrito para `/app/backend/data` (`docker-compose.yml:35`). `backend/Dockerfile:14` também copia para `/app/default-data`, mas o Compose usa `/app/backend/data` em runtime |
-| `ROSITA_GPU_NAME` | — | Nome de fallback exibido na UI quando há GPU visível (`CUDA_VISIBLE_DEVICES`/`NVIDIA_VISIBLE_DEVICES`) mas sem `nvidia-smi` (`system_monitor.py`) |
-| `ROSITA_SESSION_COOKIE_SECURE` | `false` local / `true` Compose | Ativa cookies de sessão somente por TLS |
-| `ROSITA_REQUIRE_HTTPS` | `false` local / `true` Compose | Recusa requisições sem HTTPS; o proxy TLS deve enviar `X-Forwarded-Proto: https` |
-| `ROSITA_REQUIRE_PRIVACY_CONSENT` | `false` local / `true` Compose | Exige aceite do aviso antes do primeiro chat |
-| `ROSITA_PRIVACY_NOTICE_VERSION` | `2026-11-14` | Versão do aviso registrada no consentimento |
-| `ROSITA_HISTORY_MODE` | `required` | `required`, `optional` ou `disabled`; controla a persistência do histórico |
-| `ROSITA_HISTORY_RETENTION_DAYS` | `0` | Remove mensagens mais antigas que o prazo na inicialização; `0` desativa a limpeza automática |
-| `ROSITA_MAX_HISTORY` | `5` | Quantidade de mensagens do histórico enviadas ao provedor |
-| `ROSITA_MAX_INPUT_CHARS` | `1000` | Limite de caracteres por mensagem |
-| `ROSITA_NUM_PREDICT` | `256` | Tamanho máximo da resposta gerada |
-| `ROSITA_TEMPERATURE` | `0.75` | Criatividade do modelo |
-| `ROSITA_TOP_P` | `0.92` | Amostragem *nucleus sampling* |
-| `ROSITA_REPEAT_PENALTY` | `1.08` | Penalidade de repetição |
-| `ROSITA_DEBUG` | `false` | Modo de depuração do Flask |
-
-## Testes
+1. Copie `.env.example` para `.env` e configure o provedor de IA e as credenciais.
+2. Em produção, coloque a aplicação atrás de um proxy reverso com HTTPS e encaminhe `X-Forwarded-Proto: https`.
+3. Inicie os serviços:
 
 ```bash
-pip install -r requirements-dev.txt
-pytest
+docker compose up -d --build
 ```
 
-Cobrem o `HistoryStore`, validação de entrada, autenticação/autorização, o núcleo
-do agente e a seleção de modelo/provedor (sem depender de um servidor de IA),
-o proxy do frontend (`web/scripts/dev_server.py`) e checagens de deploy.
+A interface é publicada em `http://127.0.0.1:18080` quando `ROSITA_WEB_PORT=18080`.
+Sem essa variável no Compose, o fallback publicado é `18888`.
 
-## Execução
+> Não exponha o Compose diretamente em HTTP na internet. Para testes locais,
+> configure explicitamente `ROSITA_REQUIRE_HTTPS=false` e
+> `ROSITA_SESSION_COOKIE_SECURE=false`.
 
-### Inicialização automática (recomendado - Windows)
+### Opção 2 — Execução Local Automatizada
+
+**Windows**
 
 ```bat
-start_system.bat [--no-start] [--skip-browser]
+start_system.bat
 ```
 
-O script:
-- verifica Python no computador;
-- tenta instalar Python automaticamente via `winget` se não encontrar;
-- valida o provedor de IA configurado (Open Router exige `KEY` + `MODEL`; Gateway exige `URL`);
-- cria `.venv`;
-- instala dependências do backend;
-- inicia backend e web em terminais separados;
-- usa as portas locais configuradas no `.env`, com padrão `18500` e `18080`;
-- abre o navegador automaticamente no frontend local (`--skip-browser` desativa);
-- gera logs de inicialização na pasta `logs/` (`--no-start` só valida/instala, sem subir serviços).
-
-### Inicialização automática (recomendado - Linux)
+**Linux / MiniOS**
 
 ```bash
 chmod +x start_system.sh
-./start_system.sh [--yes] [--skip-browser] [--no-start]
+./start_system.sh
 ```
 
-O script Linux foi reforçado para um cenário mais robusto:
-- valida a estrutura do projeto antes de iniciar;
-- verifica Python 3.8+ e instala dependências de sistema quando necessário;
-- cria/usa `.venv` e reinstala pacotes com retry;
-- valida o provedor de IA configurado (Open Router exige `KEY` + `MODEL`; Gateway exige `URL`);
-- valida backend e web por checagem real de resposta;
-- grava logs persistentes na pasta `logs/` (`startup.log`, `backend.log`, `web.log`).
+Os scripts criam ou reutilizam o ambiente virtual, instalam as dependências e
+sobem o backend em `127.0.0.1:18500` e o frontend em `127.0.0.1:18080`.
 
-No modo local, a interface e o backend usam HTTP em `127.0.0.1`; os scripts
-`start_system.bat` e `scripts/win_run_backend.bat` definem explicitamente
-`ROSITA_REQUIRE_HTTPS=false` e `ROSITA_SESSION_COOKIE_SECURE=false`.
+### Execução Manual
 
-Para ambiente leve, como MiniOS, basta configurar o provedor no `.env`:
+<details>
+<summary>Comandos manuais para backend, frontend e CLI</summary>
 
-```bash
-ROSITA_OPENROUTER_API_KEY=sk-or-... ROSITA_OPENROUTER_MODEL=openai/gpt-4o-mini ./start_system.sh --yes
-```
-
-Guia detalhado: `docs/linux_startup.md`.
-
-### Backend
+**Backend**
 
 ```bash
 cd backend
@@ -366,137 +153,144 @@ pip install -r requirements.txt
 python app.py
 ```
 
-Lê o `.env` da raiz (com fallback para `backend/env.admin` e
-`backend/env.defaults`, mais `backend/.env` e `.venv/admin_password.env` com
-override — ver Segurança). Em dev local sobe o Flask (`app.run`); no Docker a
-mesma `app:app` sobe via Gunicorn pelo `CMD` de `backend/Dockerfile:18`
-(`backend/compose-entrypoint.sh` existe mas não é referenciado no
-`docker-compose.yml`). Comentários no topo de `backend/Dockerfile:1` e
-`web/Dockerfile:1` ainda falam em bind-mount/sem build, mas o Compose atual
-faz `build` com código copiado para a imagem. Para repetir o ambiente dos scripts, use o
-`.venv` da raiz (`../.venv/Scripts/python.exe` no Windows).
-
-### Web (frontend)
-
-Em produção o frontend é servido pelo Nginx (`web/Dockerfile` + `web/nginx.conf`,
-com proxy de `/api/*` para `backend:5000`). Em desenvolvimento
-local, `start_system.bat` / `start_system.sh` sobem o proxy em `web/scripts/dev_server.py`
-(encaminha `/api` para o backend). O mesmo servidor pode ser iniciado à parte
-(requer `flask` + `requests`, já incluídos em `backend/requirements.txt` — use o `.venv`):
+**Frontend com proxy para o backend**
 
 ```bash
 cd web
 python scripts/dev_server.py
 ```
 
-Porta padrão: `18080` (`ROSITA_WEB_PORT`). Backend padrão do proxy:
-`http://127.0.0.1:18500` (`ROSITA_BACKEND_URL`). Detalhes: `web/README.md`.
+O frontend fica disponível em `http://127.0.0.1:18080` por padrão. O servidor
+de desenvolvimento encaminha `/api/*` para o backend local.
 
-Alternativa sem proxy (`python -m http.server`) não encaminha `/api`; nesse caso
-ajuste `window.ROSITA_API_BASE_URL` em `web/scripts/config.js` se a API não
-estiver na mesma origem.
-
-Abra `http://127.0.0.1:18080`.
-
-### CLI (opcional)
+**CLI opcional**
 
 ```bash
 python agent_cli.py
 ```
 
-Reusa o mesmo núcleo da API, mas mantém o histórico só em memória durante a
-sessão do terminal (não usa o SQLite). Não chama `load_dotenv` (diferente de
-`backend/app.py`), então ignora `.env`/`env.admin`/`env.defaults`/`backend/.env`
-em arquivo — usa só variáveis já exportadas no ambiente + defaults hardcoded em
-`settings.py`. Na prática, exporte as vars ou rode com o ambiente já carregado.
-O fallback `from rosita.config import` em `agent_cli.py:12-14` referencia módulo
-inexistente (nunca atingido quando `rosita.settings` existe).
+O CLI reutiliza o núcleo do agente para uso em terminal.
 
-## Deploy com Docker / Coolify
+</details>
 
-1. copie o arquivo `.env.example` para `.env`;
-2. por padrão, o projeto usa **Open Router** como provedor de IA (nuvem); o `docker-compose.yml` não traz servidor de IA interno;
-3. para usar OpenRouter, configure `ROSITA_AI_PROVIDER=openrouter`, `ROSITA_OPENROUTER_API_KEY` e `ROSITA_OPENROUTER_MODEL`;
-4. para usar um gateway local (IA rodando no seu servidor), configure `ROSITA_AI_PROVIDER=gateway` e `ROSITA_GATEWAY_URL`;
-5. suba a stack com o Compose:
+## Provedores de IA e Segurança
+
+| Aspecto | OpenRouter | Gateway |
+|---|---|---|
+| Localização | Serviço em nuvem | Servidor OpenAI-compatible próprio |
+| Configuração principal | `ROSITA_OPENROUTER_API_KEY`, `ROSITA_OPENROUTER_MODEL` | `ROSITA_GATEWAY_URL`, `ROSITA_GATEWAY_MODEL` |
+| Endpoints esperados | API do OpenRouter | `GET /v1/models` e `POST /v1/chat/completions` |
+| Uso recomendado | Implantação simples com acesso à API | Dados e inferência em infraestrutura própria |
+
+A seleção inicial usa `ROSITA_AI_PROVIDER=openrouter` ou `gateway`. Administradores
+podem alternar provedores disponíveis em runtime pela interface.
+
+### Gerar valores seguros
 
 ```bash
-docker compose up -d --build
+python -c "import secrets; print(secrets.token_hex(32))"
 ```
 
-Em produção, o Compose mantém obrigatoriamente:
+```bash
+python -c "from werkzeug.security import generate_password_hash as g; print(g('SUA_SENHA'))"
+```
+
+No Docker Compose e nos arquivos `.env`, utilize **aspas simples** ao registrar
+hashes `scrypt`, pois esses valores contêm o caractere `$`:
 
 ```env
-ROSITA_REQUIRE_HTTPS=true
-ROSITA_SESSION_COOKIE_SECURE=true
+ROSITA_ADMIN_PASSWORD_HASH='scrypt:32768:8:1$...$...'
+ROSITA_SECRET_KEY='valor-gerado-com-o-comando-acima'
 ```
 
-A aplicação deve ficar atrás de um proxy TLS real. Esse proxy precisa
-encaminhar `X-Forwarded-Proto: https` até o Nginx/backend. Não publique o
-Compose diretamente em HTTP na internet. Para um teste local via Docker, use
-um `.env` de desenvolvimento que sobrescreva explicitamente ambos os valores
-com `false`.
+<details>
+<summary>Variáveis de ambiente opcionais</summary>
 
-O `docker-compose.yml` padrão não exige GPU no host da ROSITA. Com OpenRouter o
-processamento é na nuvem (o desempenho depende da rede e do modelo na nuvem);
-com gateway local, o desempenho depende do servidor do gateway.
+| Variável | Padrão | Descrição |
+|---|---|---|
+| `ROSITA_WEB_PORT` | `18080` local / `18888` Compose | Porta pública da interface |
+| `ROSITA_API_PORT` | `18500` local | Porta do backend no desenvolvimento |
+| `ROSITA_API_HOST` | `0.0.0.0` | Interface de rede do backend |
+| `ROSITA_WEB_HOST` | `127.0.0.1` | Interface do servidor web local |
+| `ROSITA_BACKEND_URL` | `http://127.0.0.1:18500` | Backend usado pelo proxy local |
+| `ROSITA_SESSION_COOKIE_SECURE` | `false` local / `true` Compose | Cookie exclusivo de HTTPS |
+| `ROSITA_REQUIRE_HTTPS` | `false` local / `true` Compose | Exige indicador HTTPS |
+| `ROSITA_REQUIRE_PRIVACY_CONSENT` | `false` local / `true` Compose | Exige aceite antes do chat |
+| `ROSITA_PRIVACY_NOTICE_VERSION` | `2026-11-14` | Versão do aviso de privacidade |
+| `ROSITA_HISTORY_MODE` | `required` | `required`, `optional` ou `disabled` |
+| `ROSITA_HISTORY_RETENTION_DAYS` | `0` | Dias de retenção; `0` desativa limpeza automática |
+| `ROSITA_HISTORY_DB` | Caminho local do SQLite | Banco de histórico |
+| `ROSITA_MAX_HISTORY` | `5` | Mensagens anteriores enviadas ao provedor |
+| `ROSITA_MAX_INPUT_CHARS` | `1000` | Limite por mensagem |
+| `ROSITA_NUM_PREDICT` | `256` | Máximo de tokens da resposta |
+| `ROSITA_TEMPERATURE` | `0.75` | Criatividade da geração |
+| `ROSITA_TOP_P` | `0.92` | Amostragem nucleus |
+| `ROSITA_REPEAT_PENALTY` | `1.08` | Penalidade de repetição |
+| `ROSITA_DEBUG` | `false` | Depuração do Flask |
 
-Se você tiver **placa NVIDIA** e o **NVIDIA Container Toolkit** instalado, crie seu próprio override GPU (não há `docker-compose.gpu.yml` incluído neste repositório).
+</details>
 
-### MiniOS e erro `overlay` / `invalid argument`
+> Governança LGPD: este projeto oferece recursos técnicos de privacidade, mas não
+> substitui a definição institucional de controlador, base legal, encarregado,
+> prazo de retenção e procedimentos para titulares. Esses pontos devem ser
+> formalizados pela instituição antes do uso com dados reais.
 
-Em MiniOS ou live USB, o driver **overlay** do Docker pode falhar ao **criar** contêineres. Esse problema não é resolvido no `docker-compose.yml`. Para continuar usando **`docker compose`**, habilite o driver **`vfs`** no host com `sudo ./scripts/enable-docker-vfs-minios.sh` (detalhes em **`docs/linux_startup.md`**). Alternativa sem Docker: **`./start_system.sh`**.
+## Testes Automatizados
 
-Serviços padrão (com `.env` preenchido):
-- Web: `http://SEU_SERVIDOR:18080`
-- API: acessível pelo proxy da web em `http://SEU_SERVIDOR:18080/api`
+```bash
+pip install -r requirements-dev.txt
+pytest
+```
 
-Sem `.env`, o Compose publica a web em `18888:80` (fallback do serviço `web`);
-o `ROSITA_WEB_PORT` usado no bloco `environment` do backend é apenas o default
-usado para montar o CORS, não uma porta pública adicional. O backend escuta em
-`5000` dentro da rede Docker e não possui publicação direta de porta. O
-healthcheck do Compose usa `GET /api/status` (`docker-compose.yml:63`); o
-`GET /api/health` verifica o provedor de IA (200 ok / 503 degradado).
+A suíte cobre armazenamento SQLite, validação de entrada, autenticação/API,
+seleção de provedor e modelo, proxy web e verificações de implantação.
+Os testes do núcleo de IA não dependem de uma chamada real ao provedor.
 
-Na primeira abertura, se ainda não houver modelo ativo, a própria interface web permite selecionar um modelo disponível no provedor configurado.
-Nenhum modelo é baixado, ativado ou trocado automaticamente sem ação do usuário.
-Os arquivos `.txt` em `backend/data` também podem ser editados pela interface e salvos no ambiente em execução — no Docker essa edição é **efêmera** (o único volume persistente é `rosita_history` para o SQLite; `backend/data` vem da imagem).
+## Referência da API
 
-O desempenho depende do modelo escolhido no provedor configurado (Open Router ou gateway).
+<details>
+<summary>Endpoints principais</summary>
 
-No Coolify, basta importar o repositório e usar o arquivo `docker-compose.yml` da raiz (CPU). Para GPU no Coolify, adicione um override próprio (ex.: `docker-compose.gpu.yml`) conforme a documentação da plataforma.
+| Método | Rota | Acesso | Descrição |
+|---|---|---|---|
+| `GET` | `/` | Público | Indica que a API está disponível |
+| `GET` | `/api/health` | Público | Verifica a disponibilidade do provedor de IA |
+| `GET` | `/api/status` | Público/Admin | Retorna estado, modelo e status do sistema |
+| `POST` | `/api/auth/login` | Público | Login administrativo |
+| `POST` | `/api/auth/logout` | Sessão | Encerrar sessão |
+| `GET` | `/api/auth/session` | Sessão | Consultar a sessão atual |
+| `POST` | `/api/chat` | Público/sessão | Enviar mensagem com resposta SSE |
+| `GET` | `/api/historico` | Sessão | Consultar mensagens da sessão |
+| `POST` | `/api/limpar` | Sessão | Limpar histórico da sessão |
+| `GET` | `/api/regimento/pdf` | Público | Visualizar o Regimento ECIM em PDF |
+| `GET` | `/api/privacy/status` | Sessão | Consultar aviso e consentimento |
+| `POST` | `/api/privacy/consent` | Sessão | Registrar consentimento versionado |
+| `GET` | `/api/meus-dados` | Sessão | Exportar dados em JSON |
+| `DELETE` | `/api/meus-dados` | Sessão | Excluir dados da sessão |
+| `GET` | `/api/provedores` | Admin | Listar provedores |
+| `POST` | `/api/provedores/trocar` | Admin | Alternar provedor ativo |
+| `GET` | `/api/models` | Admin | Listar modelos disponíveis |
+| `POST` | `/api/models/select` | Admin | Selecionar modelo ativo |
+| `GET`, `PUT`, `POST` | `/api/credenciais` | Admin | Consultar ou persistir configurações de IA |
+| `GET` | `/api/config/files` | Admin | Listar referências `.txt` |
+| `GET`, `PUT` | `/api/config/files/<nome>` | Admin | Ler ou salvar uma referência |
 
-No **MiniOS ou máquina sem GPU**, se usar gateway local prefira um modelo leve
-(ex.: `Llama-3.2-1B`, `Qwen2.5-0.5B`); se usar OpenRouter, prefira um modelo
-leve na nuvem (ex.: `openai/gpt-4o-mini`).
+</details>
 
-## API
+## Documentação Complementar
 
-- `GET /` — JSON `{ "mensagem": "API ROSITA online" }`
-- `GET /api/health` — healthcheck que verifica o provedor de IA (200 ok / 503 degradado)
-- `GET /api/regimento/pdf` — serve o Regimento Escolar ECIM em visualização PDF. Arquivo real `regimento_ECIM.pdf` em `backend/data/`; o match é case-insensitive para `regimento_ecim.pdf`/`regimento.pdf` (`routes.py:286,292`)
-- `GET /api/status` (inclui `modelo_atual`, `ocupado`, `provedor_ia`, `gateway_url`, `documentos_contexto`, `contexto_carregado`; `sistema` só para admin. Não há campo `servidor_ia`)
-- `POST /api/auth/login` (rate limit 10/min; **apenas admin**), `POST /api/auth/logout`, `GET /api/auth/session`
-- `POST /api/chat` (rate limit 20/min; resposta em SSE)
-- `GET /api/historico`, `POST /api/limpar` (do usuário logado ou do visitante anônimo da sessão)
-- `GET /api/privacy/status`, `POST /api/privacy/consent` (aviso e consentimento versionado)
-- `GET /api/meus-dados` (exportação JSON dos dados da sessão)
-- `DELETE /api/meus-dados` (exclusão do histórico e consentimento da sessão)
-- `GET /api/provedores` (admin)
-- `POST /api/provedores/trocar` (admin; body: `{ "provedor": "openrouter" | "gateway" }`; limpa o modelo ativo)
-- `GET /api/models`, `POST /api/models/select` (admin; o modelo precisa estar na lista do provedor ativo)
-- `GET /api/credenciais`, `PUT /api/credenciais` (admin; `POST` também aceito; configuração do provedor de IA, persistida em `backend/.env`)
-- `GET /api/config/files` (admin; lista os `.txt` editáveis em `backend/data/` — só `.txt`, embora o contexto carregue `.txt`+`.md`)
-- `GET /api/config/files/<nome>` (admin; lê um arquivo de dados)
-- `PUT /api/config/files/<nome>` (admin; salva `.txt` até 300KB, com backup `<nome>.txt.bak` do conteúdo anterior (`path.suffix + .bak`), e recarrega o contexto do agente)
+- [Índice da documentação](docs/README.md)
+- [Arquitetura do backend](docs/arquitetura-backend.md)
+- [Arquitetura do frontend](docs/arquitetura-frontend.md)
+- [Plano de melhorias](docs/PLANO_MELHORIAS.md)
+- [Execução no Linux e MiniOS](docs/linux_startup.md)
+- [Plano de implementação](docs/implementation_plan.md)
+- [Frontend web](web/README.md)
 
-O plano de melhorias e correções do projeto está em `docs/PLANO_MELHORIAS.md`.
+## Contexto Acadêmico (TCC)
 
-## Documentação adicional
-
-- `docs/architecture.md` — arquitetura, camadas e provedores de IA
-- `docs/ARQUITETURA.md` — decisões de arquitetura do frontend (vanilla JS sem bundler)
-- `docs/implementation_plan.md` — plano de implementação frontend-first
-- `docs/linux_startup.md` — guia de execução no Linux/MiniOS
-- `docs/PLANO_MELHORIAS.md` — plano de melhorias e correções
-- `web/README.md` — como servir o frontend localmente (proxy e modo estático)
+- Instituição: `PEI Rosa Bonfiglioli`
+- Curso: `Técnico em Ciência de Dados`
+- Autor(es): `Yuri Alves de Sousa, Rafael Andrade de Carvalho, Mariana Macedo da Cruz, Andrey Evangelista de Souza e Kael Andrews Moraes Piva`
+- Orientador(a): `José Pedro Tavares de Souza`
+- Ano: `2026`

@@ -1,64 +1,98 @@
-# Web Client ROSITA
+# Frontend Web da ROSITA
 
-Interface web oficial do projeto (HTML, CSS e JavaScript sem bundler).
+O frontend é uma interface em HTML, CSS e JavaScript Vanilla. Ele é servido pelo
+Nginx no Docker ou por um servidor de desenvolvimento local com proxy para o Flask.
 
-## HTTPS em produção
+## Recursos da interface
 
-O container web deve ficar atrás de um proxy reverso que termine TLS.
-Configure esse proxy para encaminhar `X-Forwarded-Proto: https` ao backend.
-No Docker Compose, o backend recusa requisições sem esse indicador, não expõe
-sua porta diretamente e usa cookies de sessão Secure.
+- Chat com respostas em streaming via Server-Sent Events.
+- Login administrativo e acesso anônimo ao chat.
+- Histórico da sessão, limpeza e exportação/exclusão de dados.
+- Visualização do PDF oficial do Regimento Escolar ECIM.
+- Temas claro e escuro.
+- Painéis administrativos de provedor, modelo, credenciais e referências.
+- Status de servidor, CPU, memória, disco e GPU quando disponível.
+- Layout responsivo para desktop, tablet e celular.
 
-## Temas
+## Arquivos principais
 
-A interface tem **tema claro** e **tema escuro**, controlados pelo atributo
-`data-theme` em `<html>` (`light` ou `dark`). **Cada abertura inicia no tema
-escuro.** O botão na sidebar alterna os temas na sessão atual; o tema claro não
-é restaurado automaticamente na próxima visita.
+```text
+web/
+├── index.html
+├── nginx.conf
+├── scripts/
+│   ├── api_client.js
+│   ├── config.js
+│   ├── dev_server.py
+│   └── main.js
+└── styles/
+    └── main.css
+```
 
-Estilos: `styles/main.css`. Tokens do escuro em `:root`; tokens e efeitos do
-claro (degradê, vidro) só em `html[data-theme="light"]`. O layout (sidebar,
-chat, compositor) é compartilhado.
+## Execução local com proxy
 
-## Executar localmente (proxy com o backend)
+Na raiz do projeto:
 
 ```bash
 cd web
 python scripts/dev_server.py
 ```
 
-O servidor de desenvolvimento serve o frontend e faz proxy de `/api/*` para o
-backend. Para apontar para outro backend, defina `ROSITA_BACKEND_URL`
-(padrão: `http://127.0.0.1:18500`). Porta padrão: `18080` (configure com
-`ROSITA_WEB_PORT`).
+Padrões:
 
-## Responsividade
+- Interface: `http://127.0.0.1:18080`
+- Backend: `http://127.0.0.1:18500`
 
-O layout usa três faixas de viewport: sidebar completa acima de 1100 px,
-sidebar compacta entre 701 e 1100 px e barra superior abaixo de 700 px.
-Modais com conteúdo variável possuem rolagem própria para permanecerem
-acessíveis em telas baixas e usam a altura dinâmica da viewport móvel quando
-disponível.
+As portas podem ser alteradas:
 
-As credenciais de provedores são campos de segredo de API, não de senha de
-login. Eles usam `autocomplete="new-password"` e atributos de exclusão de
-gerenciadores conhecidos; o backend nunca devolve as chaves ao navegador.
+```bash
+ROSITA_WEB_PORT=18081 ROSITA_BACKEND_URL=http://127.0.0.1:18501 python scripts/dev_server.py
+```
 
-O aviso de privacidade é confirmado por versão. Após o aceite, a decisão é
-lembrada localmente e sincronizada com o servidor sem exibir o modal a cada
-recarregamento. A marca local é removida quando o usuário solicita a exclusão
-dos próprios dados; uma nova versão do aviso pode solicitar nova confirmação.
+O servidor local encaminha `/api/*` ao backend. `ROSITA_WEB_HOST` define a
+interface de rede do servidor e `ROSITA_WEB_PORT` define a porta.
 
-Este é o mesmo mecanismo usado por `start_system.bat`, `start_system.sh` e
-`scripts/win_run_web.bat`.
+## Execução somente estática
 
-## Alternativa simples (sem proxy)
+É possível servir os arquivos com um servidor HTTP simples:
 
 ```bash
 cd web
 python -m http.server 18080
 ```
 
-Acesse `http://localhost:18080`. Nesse modo, o frontend chama o backend
-diretamente; configure `window.ROSITA_API_BASE_URL` em `scripts/config.js`
-se o backend não estiver na mesma origem.
+Nesse modo, o navegador não possui proxy automático para o backend. Configure
+`window.ROSITA_API_BASE_URL` em `scripts/config.js` apenas quando o backend
+não estiver disponível na mesma origem.
+
+## Docker e produção
+
+O `Dockerfile` do frontend usa Nginx. O arquivo `nginx.conf` recebe requisições
+HTTP em `/` e encaminha `/api/*` para `backend:5000`.
+
+Em produção, o conjunto web/backend deve ficar atrás de HTTPS. O proxy reverso
+deve encaminhar `X-Forwarded-Proto: https` para que o backend aceite as
+requisições e configure os cookies seguros conforme a configuração do projeto.
+
+Porta padrão do Compose:
+
+- Com `ROSITA_WEB_PORT=18080`: `http://127.0.0.1:18080`
+- Sem a variável: fallback `18888`
+
+## Temas e responsividade
+
+Cada abertura da interface inicia no tema escuro. O botão da barra lateral
+permite alternar o tema durante a sessão. Os breakpoints principais são:
+
+- Acima de 1100 px: barra lateral completa.
+- Entre 701 px e 1100 px: barra lateral compacta.
+- Até 700 px: navegação superior.
+
+## Consistência documental
+
+Para arquitetura, instalação, segurança e referência de API, consulte:
+
+- [README principal](../README.md)
+- [Arquitetura do frontend](../docs/arquitetura-frontend.md)
+- [Arquitetura do backend](../docs/arquitetura-backend.md)
+- [Execução no Linux e MiniOS](../docs/linux_startup.md)

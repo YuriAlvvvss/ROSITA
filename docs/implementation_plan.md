@@ -1,47 +1,46 @@
-# Plano de Implementacao - Frontend direto (sem prompt/CLI)
+# Plano de Implementação
 
-Objetivo: operar a ROSITA exclusivamente pelo frontend, sem executar `agent_cli.py`.
+Este documento registra as fases que orientaram a implementação da ROSITA.
+As entregas descritas refletem o estado atual do projeto.
 
-## Fase 1 - Estabilizar backend para consumo web
+## Fase 1 — Backend e API
 
-- Definir `.env` para configuracoes (`ROSITA_API_HOST`, `ROSITA_API_PORT`, `ROSITA_OPENROUTER_MODEL`).
-- Suportar provedores de IA via `ROSITA_AI_PROVIDER` (`openrouter`, `gateway`).
-- Variaveis por provedor: `ROSITA_OPENROUTER_API_KEY`, `ROSITA_OPENROUTER_MODEL`, `ROSITA_GATEWAY_URL`, `ROSITA_GATEWAY_MODEL`.
-- Garantir health checks (`/` e `/api/status`) para monitoramento.
-- Fixar contrato da API (`/api/chat`, `/api/historico`, `/api/limpar`, `/api/provedores`).
-- Adicionar tratamento consistente de erro no formato JSON/SSE.
+- Configuração por variáveis de ambiente.
+- Abstração dos provedores OpenRouter e Gateway.
+- Contratos REST e respostas em Server-Sent Events.
+- Validação de entrada e limites de requisição.
 
-## Fase 2 - Web como interface principal
+## Fase 2 — Interface web
 
-- Centralizar chamadas HTTP/SSE em `web/scripts/api_client.js`.
-- Melhorar estados de UI: carregando, offline, timeout, retry.
-- Persistir historico no frontend (session/local storage) se necessario.
-- Adicionar configuracao de URL da API via variavel de ambiente/build.
+- Interface Vanilla JS como camada principal de uso.
+- Login administrativo e acesso anônimo ao chat.
+- Streaming de mensagens e consulta ao PDF do regimento.
+- Temas claro/escuro e layout responsivo.
 
-## Fase 3 - Execucao unificada (sem prompt manual)
+## Fase 3 — Administração e dados
 
-- Criar script de inicializacao unico (`start_system.bat`) para subir backend e servir web.
-- Opcao recomendada: usar um servidor web (Nginx/Caddy) para servir `web/` e encaminhar `/api` ao Flask.
-- Manter CORS restrito por ambiente (dev vs producao).
+- Seleção de provedores e modelos em runtime.
+- Editor de referências `.txt` com backup.
+- Histórico SQLite por usuário/sessão.
+- Aviso de privacidade, exportação e exclusão.
 
-## Fase 4 - Producao e confiabilidade
+## Fase 4 — Implantação
 
-- Rodar Flask com Gunicorn/Waitress (nao usar debug em producao).
-- Colocar backend como servico (Windows Service, Docker ou PM2 equivalente).
-- Deploy Docker: `docker-compose.yml` (CPU); override `docker-compose.gpu.yml` para GPU NVIDIA (requer NVIDIA Container Toolkit).
-- Monitorar logs e disponibilidade.
-- Definir estrategia de backup para arquivos de dados do agente.
+- Scripts automatizados para Windows e Linux.
+- Docker Compose com Nginx e Gunicorn.
+- Health checks e monitoramento de recursos.
+- Execução local via servidor de desenvolvimento.
 
-## Fase 5 - Qualidade e seguranca
+## Fase 5 — Qualidade
 
-- Testes automatizados de API (status, chat, validacoes).
-- Limite de taxa (rate limit) para evitar abuso.
-- Sanitizacao e limite de tamanho de payload.
-- Checklist de deploy com rollback.
+- Suíte Pytest para o backend e integrações.
+- Verificação de autenticação, validação, armazenamento e proxy.
+- Revisão documental para apresentação acadêmica e implantação.
 
-## Critério de sucesso
+## Critérios alcançados
 
-- Usuario abre apenas o frontend no navegador.
-- Sistema responde sem abrir terminal de chat/CLI.
-- Backend inicia como servico/processo gerenciado.
-- Instrucoes do agente seguem editaveis em `backend/data/agent_instructions.txt`.
+- O usuário utiliza a interface web sem executar o CLI.
+- A instituição pode configurar o provedor de IA sem alterar o código.
+- Referências institucionais podem ser mantidas pela área administrativa.
+- Dados da sessão podem ser exportados ou excluídos.
+- O projeto pode ser executado localmente ou por contêineres.
