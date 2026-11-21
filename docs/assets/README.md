@@ -11,4 +11,3 @@ Este diretório contém os materiais visuais exibidos no README principal:
 - `WireFrame-AcessoADM.jpg`: wireframe do acesso administrativo.
 - `WireFrame-Chat.jpg`: wireframe do chat.
 - `WireFrame-PainelAdministrativo.jpg`: wireframe do painel administrativo.
-- `WireFrame-StatusSistema.jpg`: wireframe do status do sistema.
